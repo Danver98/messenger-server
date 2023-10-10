@@ -33,7 +33,7 @@ public class UserController {
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         }
         List<User> found = this.userService.searchUsers(name, surname);
-        return new ResponseEntity<>(found, found.size() > 0 ? HttpStatus.OK : HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(found, !found.isEmpty() ? HttpStatus.OK : HttpStatus.NO_CONTENT);
     }
 
     @PostMapping

@@ -1,39 +1,29 @@
 package com.danver.messengerserver.auth;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import lombok.Getter;
 
-public class AuthData {
+@Getter
+public class AuthDTO {
 
     @JsonAlias({"email"})
     private String login;
     private String password;
     private String token;
 
-    private AuthData() {
+    private AuthDTO() {
 
     }
 
-    public AuthData(String login, String password) {
+    public AuthDTO(String login, String password) {
         this.login = login;
         this.password = password;
     }
 
-    public AuthData(String login, String password, String token) {
+    public AuthDTO(String login, String password, String token) {
         this.login = login;
         this.password = password;
         this.token = token;
-    }
-
-    public String getLogin() {
-        return login;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public String getToken() {
-        return token;
     }
 
     public void setToken(String token) {

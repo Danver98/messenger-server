@@ -1,6 +1,7 @@
 package com.danver.messengerserver.controllers;
 
 import com.danver.messengerserver.exceptions.AuthorizedAccessException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.sql.SQLException;
 
+@Slf4j
 @ControllerAdvice
 public class RestResponseEntityExceptionController extends ResponseEntityExceptionHandler {
 
@@ -21,6 +23,7 @@ public class RestResponseEntityExceptionController extends ResponseEntityExcepti
 
     @ExceptionHandler(value = {DataAccessException.class, SQLException.class})
     public ResponseEntity<Object> dataAccessException(DataAccessException exception) {
+        log.error(exception.getMessage());
         return new ResponseEntity<>("Couldn't access the data source", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

@@ -4,12 +4,15 @@ import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.repositories.interfaces.UserRepository;
 import com.danver.messengerserver.repositories.mappers.UserDTORowMapper;
 import com.danver.messengerserver.repositories.mappers.UserRowMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+@Slf4j
 @Repository
 public class UserRepositoryImpl implements UserRepository {
 
@@ -36,14 +39,22 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public User getUser(long id) {
         String query = "SELECT id, name, surname, email, avatarUrl FROM Users WHERE id = ?";
-        return jdbcTemplate.queryForObject(query, new UserDTORowMapper(), id);
+        try {
+            return jdbcTemplate.queryForObject(query, new UserDTORowMapper(), id);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     @Override
     public User getUserByEmail(String email) {
         String query = "SELECT * FROM Users WHERE email = ?";
         // We use UserRowMapper here to process password and salt
-        return jdbcTemplate.queryForObject(query, new UserRowMapper(), email);
+        try {
+            return jdbcTemplate.queryForObject(query, new UserRowMapper(), email);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     @Override

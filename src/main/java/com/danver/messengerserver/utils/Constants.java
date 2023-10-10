@@ -1,16 +1,19 @@
 package com.danver.messengerserver.utils;
 
-public enum Constants {
+public class Constants {
+    public static final String USER_JWT_EMAIL_KEY = "email";
+    public static final String CHATS_ONE_PAGE_COUNT = "50";
+    public static final String WS_MESSAGE_SERVICE_STOMP_ENDPOINT = "/ws";
 
-    USER_JWT_EMAIL_KEY("email");
+    // Path prefix for incoming requests to be processed by methods with @MessageMapping annotation
+    public static final String WS_MESSAGE_SERVICE_APP_PREFIX = "/websocket";
 
-    private final String value;
+    // Path prefix where we send back messages
+    public static final String WS_MESSAGE_SERVICE_TOPIC = "/topic";
+    public static final String WS_MESSAGE_SERVICE_USER_DESTINATION_PREFIX ="/user";
 
-    Constants(String value) {
-        this.value = value;
-    }
+    public static final String WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME = "/topic/chat/private/queue/messages";
 
-    public String getValue(){
-        return this.value;
-    }
+    public static final String WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME = "/topic/chat/queue/messages";
+
 }

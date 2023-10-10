@@ -7,6 +7,7 @@ import com.danver.messengerserver.services.interfaces.ChatService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -26,9 +27,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<Chat> getChats(long userId) {
+    public List<Chat> getChats(long userId, Instant prevLastChanged, Long prevChatId, Integer count) {
         //return chatRepository.getChatsWithParticipants(userId);
-        return chatRepository.getChats(userId);
+        return chatRepository.getChats(userId, prevLastChanged, prevChatId, count);
     }
 
     @Override
@@ -49,5 +50,10 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void deleteChat(long id) {
         chatRepository.deleteChat(id);
+    }
+
+    @Override
+    public boolean userInChat(long userId, long chatId) {
+        return chatRepository.userInChat(userId, chatId);
     }
 }

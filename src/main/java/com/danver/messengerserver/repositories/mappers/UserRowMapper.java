@@ -15,8 +15,7 @@ public class UserRowMapper implements RowMapper<User> {
                 .name(rs.getString("name"))
                 .surname(rs.getString("surname"))
                 .email(rs.getString("email"))
-                .salt(rs.getBytes("salt"))
-                .password(rs.getString("passwordHash"))
+                .password(rs.getString("passwordhash"))
                 .avatarUrl(rs.getString("avatarUrl"))
                 .build();
     }

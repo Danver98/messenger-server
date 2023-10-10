@@ -1,9 +1,12 @@
 package com.danver.messengerserver.models;
 
+import java.util.Collection;
 import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
-public class User {
+public class User implements UserDetails {
     private long id;
     private String email;
     //This field can store both raw password and hashed
@@ -14,6 +17,11 @@ public class User {
     private String surname;
     private String avatarUrl;
     //private List<Chat> chats;
+
+    public enum UserRoles {
+        ROLE_USER,
+        ROLE_ADMIN
+    }
 
     public static class Builder {
         private final User user;
@@ -90,6 +98,10 @@ public class User {
         return avatarUrl;
     }
 
+    /**
+     *
+     * @return raw password or password hash
+     */
     public String getPasswordHash() {
         return passwordHash;
     }
@@ -111,6 +123,51 @@ public class User {
         this.salt = null;
         return this;
     }
+
+
+    /*
+    ======================== METHODS OF USERDETAILS INTERFACE ===========================
+     */
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return null;
+    }
+
+    @Override
+    public String getPassword() {
+        return this.passwordHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return this.getEmail();
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    /*
+    =================================================================================
+     */
+
 
     @Override
     public boolean equals(Object o) {

@@ -4,15 +4,16 @@ import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.repositories.interfaces.UserRepository;
 import com.danver.messengerserver.services.interfaces.UserService;
-import com.danver.messengerserver.utils.AuthUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
+import java.util.HashSet;
 import java.util.List;
 
 @Service
@@ -22,9 +23,12 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
+    private final PasswordEncoder passwordEncoder;
+
     @Autowired
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -40,16 +44,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User createUser(User user) {
         //User has raw password
-        if ((user.getSalt() == null)) {
-            try {
-                Object[] creds = AuthUtil.hashPassword(user.getPasswordHash());
-                user.setPasswordHash((String) creds[0]);
-                user.setSalt((byte[]) creds[1]);
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                logger.info(this.getClass().getName() + " - Couldn't create a user: " + e.getMessage());
-                return null;
-            }
-        }
+        user.setPasswordHash(passwordEncoder.encode(user.getPassword()));
         return this.userRepository.createUser(user).flushPasswordAndSalt();
     }
 
@@ -66,5 +61,16 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> searchUsers(@Nullable String name, @Nullable String surname) {
         return this.userRepository.searchUsers(name, surname);
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = this.getUserByEmail(email);
+        if (user == null) {
+            throw new UsernameNotFoundException(String.format("User %s is not found", email));
+        }
+        // TODO: check compatibility with local User class
+        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPasswordHash(),
+                 true, true, true, true, new HashSet<>());
     }
 }

@@ -1,14 +1,29 @@
 package com.danver.messengerserver.models;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 
 public class Chat {
     private long id;
     private String name;
     private String avatarUrl;
+    private Instant lastChanged;
+
+    private boolean isPrivate;
     private List<User> participants;
     private List<Message> messages;
+
+    public Chat() {
+
+    }
+
+    public Chat(long id, String name, String avatarUrl, Instant lastChanged, boolean isPrivate) {
+        this.id = id;
+        this.name = name;
+        this.avatarUrl = avatarUrl;
+        this.lastChanged = lastChanged;
+        this.isPrivate = isPrivate;
+    }
 
     public void setId(long id) {
         this.id = id;
@@ -34,19 +49,6 @@ public class Chat {
         return messages;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Chat chat = (Chat) o;
-        return id == chat.id && name.equals(chat.name) && Objects.equals(avatarUrl, chat.avatarUrl) && participants.equals(chat.participants) && messages.equals(chat.messages);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, name, avatarUrl, participants, messages);
-    }
-
     public void setName(String name) {
         this.name = name;
     }
@@ -56,6 +58,30 @@ public class Chat {
     }
 
     public void setParticipants(List<User> participants) {
+
         this.participants = participants;
+        if (this.participants.size() > 2) {
+            this.setPrivate(true);
+        }
+    }
+
+    public Instant getLastChanged() {
+        return lastChanged;
+    }
+
+    public void setLastChanged(Instant lastChanged) {
+        this.lastChanged = lastChanged;
+    }
+
+    public boolean isPrivate() {
+
+        if (this.participants != null && this.participants.size() > 2) {
+            return true;
+        }
+        return isPrivate;
+    }
+
+    public void setPrivate(boolean aPrivate) {
+        isPrivate = aPrivate;
     }
 }

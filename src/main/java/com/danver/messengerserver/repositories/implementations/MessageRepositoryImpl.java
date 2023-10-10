@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -38,6 +39,53 @@ public class MessageRepositoryImpl implements MessageRepository {
                 "WHERE chatId = ? AND creationTime >= ? AND creationTime <= ?";
         return this.jdbcTemplate.query(query, new MessageRowMapper(), chatId, from.atOffset(ZoneOffset.UTC),
                 to.atOffset(ZoneOffset.UTC));
+    }
+
+    @Override
+    public List<Message> getMessagesPaged(long chatId, Instant before, Instant after, String cursorMsgId, Integer count) {
+        logger.info("Getting messages for user with id: " + " for chat with id" + chatId + "using paging");
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("chatId", chatId);
+        namedParameters.addValue("before", before);
+        namedParameters.addValue("after", after);
+        namedParameters.addValue("cursorMsgId", cursorMsgId);
+        namedParameters.addValue("count", count);
+
+        String query = """
+                SELECT
+                    Messages.id,
+                    authorId,
+                    \"name\",
+                    surname,
+                    avatarUrl,
+                    chatId,
+                    type,
+                    value,
+                    creationTime
+                FROM
+                    Messages
+                INNER JOIN Users
+                    ON Messages.authorId = Users.id
+                WHERE
+                    chatId = :chatId
+                    AND CASE :before
+                            WHEN IS NULL THEN true
+                            ELSE (creationDate, Message.id) < (:before, :cursorMsgId)
+                        END
+                    AND CASE :after
+                            WHEN IS NULL THEN true
+                            ELSE (creationDate, Message.id) > (:after, :cursorMsgId)
+                        END         
+                ORDER BY
+                    creationTime DESC
+                """;
+        if (count != null) {
+            query += """
+                FETCH FIRST :count ROWS ONLY
+            """;
+        }
+
+        return this.jdbcTemplate.query(query, new MessageRowMapper(), namedParameters);
     }
 
     @Override

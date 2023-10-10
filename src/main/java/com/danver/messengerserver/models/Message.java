@@ -7,9 +7,15 @@ public class Message {
     private String id;
     private long chatId;
     private User author;
-
     private Instant creationTime;
     private MessageData data;
+    private MessageType type;
+
+    public enum MessageType {
+        CHAT,
+        JOIN,
+        LEAVE
+    }
 
     public Message() {
 
@@ -20,6 +26,7 @@ public class Message {
         this.chatId = chatId;
         this.author = author;
         this.data = new MessageData(MessageDataType.TEXT, text);
+        this.type = MessageType.CHAT;
     }
 
     public Message(String id, long chatId, User author, Instant creationTime, String text) {
@@ -28,6 +35,7 @@ public class Message {
         this.author = author;
         this.creationTime = creationTime;
         this.data = new MessageData(MessageDataType.TEXT, text);
+        this.type = MessageType.CHAT;
     }
 
     public Message(String id, long chatId, User author, Instant creationTime, MessageData data) {
@@ -36,6 +44,7 @@ public class Message {
         this.author = author;
         this.creationTime = creationTime;
         this.data = data;
+        this.type = MessageType.CHAT;
     }
 
     public String getId() {
@@ -48,6 +57,10 @@ public class Message {
 
     public User getAuthor() {
         return author;
+    }
+
+    public Long getAuthorId() {
+        return this.author.getId();
     }
 
     public Instant getCreationTime() {
@@ -76,6 +89,14 @@ public class Message {
 
     public void setData(MessageData data) {
         this.data = data;
+    }
+
+    public MessageType getType() {
+        return type;
+    }
+
+    public void setType(MessageType type) {
+        this.type = type;
     }
 
     @Override

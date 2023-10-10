@@ -10,9 +10,10 @@ public interface MessageService {
 
     List<Message> getMessages(long chatId, Instant from, Instant to);
 
+    List<Message> getMessagesPaged(long chatId, Instant before, Instant after, String cursorMsgId, Integer count);
+
     /**
      *
-     * @param message
      * @return message with updated absent fields
      */
     Message createMessage(Message message);

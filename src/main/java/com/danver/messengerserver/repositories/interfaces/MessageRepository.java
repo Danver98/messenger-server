@@ -9,5 +9,7 @@ public interface MessageRepository {
 
     List<Message> getMessages(long chatId, Instant from, Instant to);
 
+    List<Message> getMessagesPaged(long chatId, Instant before, Instant after, String cursorMsgId, Integer count);
+
     void createMessage(Message message);
 }

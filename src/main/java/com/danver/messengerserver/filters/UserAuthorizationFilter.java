@@ -3,15 +3,17 @@ package com.danver.messengerserver.filters;
 
 import com.danver.messengerserver.exceptions.AuthorizedAccessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Map;
@@ -19,8 +21,28 @@ import java.util.Map;
 @Order(2)
 @Component
 public class UserAuthorizationFilter extends OncePerRequestFilter {
+
+    private final Environment env;
+
+    @Autowired
+    public UserAuthorizationFilter(Environment env) {
+        this.env = env;
+    }
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        if (!Boolean.parseBoolean(env.getProperty("application.authentication.enabled"))) {
+            return true;
+        }
+        return (request.getRequestURI().matches(".*/users$") &&
+                request.getMethod().equalsIgnoreCase("POST") ||
+                request.getRequestURI().matches(".*/users/search$"));
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         // We suppose token is present and has been validated
         String subject = (String) request.getAttribute("subject");
         if (subject != null) {
@@ -41,12 +63,5 @@ public class UserAuthorizationFilter extends OncePerRequestFilter {
         } else {
             throw new AuthorizedAccessException();
         }
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        return (request.getRequestURI().matches(".*/users$") &&
-                request.getMethod().equalsIgnoreCase("POST") ||
-                request.getRequestURI().matches(".*/users/search$"));
     }
 }

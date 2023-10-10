@@ -4,11 +4,15 @@ import com.danver.messengerserver.models.Chat;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.repositories.mappers.ChatRowMapper;
 import com.danver.messengerserver.repositories.mappers.UserDTORowMapper;
+import com.danver.messengerserver.utils.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,7 +22,7 @@ public class ChatRepositoryImpl implements ChatRepository {
     private final JdbcTemplate jdbcTemplate;
 
     //Chats TABLE FIELDS:
-    //id, name, avatarUrl, [participants], [messages]?
+    //id, name, avatarUrl, lastChanged, [participants], [messages]?
     // TODO: optimize queries
 
     @Autowired
@@ -29,8 +33,8 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public Chat createChat(Chat chat) {
-        String query = "INSERT INTO Chats (name, avatarUrl) VALUES (?, ?) RETURNING id";
-        long id = jdbcTemplate.queryForObject(query, Long.class, chat.getName(), chat.getAvatarUrl());
+        String query = "INSERT INTO Chats (name, avatarUrl, private) VALUES (?, ?, ?) RETURNING id";
+        long id = jdbcTemplate.queryForObject(query, Long.class, chat.getName(), chat.getAvatarUrl(), chat.isPrivate());
         chat.setId(id);
         query = "INSERT Into UsersChats VALUES (?, ?)";
         List<Object[]> usersChats = chat.getParticipants().stream()
@@ -41,10 +45,90 @@ public class ChatRepositoryImpl implements ChatRepository {
 
     @Override
     @Transactional
-    public List<Chat> getChats(long userId) {
-        String query = "SELECT * FROM Chats INNER JOIN UsersChats ON UsersChats.chatId = Chats.id" +
-                " WHERE UsersChats.userId = ?";
-        return jdbcTemplate.query(query, new ChatRowMapper(), userId);
+    public List<Chat> getChats(long userId, Instant prevLastChanged, Long prevChatId, Integer count) {
+        String query = """
+                SELECT
+                    c.id,
+                    c.name,
+                    c.avatarUrl,
+                    c.lastChanged,
+                    c.private
+                FROM
+                    Chats c
+                INNER JOIN
+                    UsersChats uc
+                ON
+                    uc.chatId = c.id
+                WHERE 
+                    uc.userId = ?
+                """;
+        if ((prevLastChanged == null) || ( prevChatId == null))
+            return jdbcTemplate.query(query, new ChatRowMapper(), userId);
+
+        query = query + """
+                AND
+                    ((c.lastChanged = ? AND c.id > ?) OR c.lastChanged < ?) -- to prevent missing dates with same values
+                ORDER BY
+                    c.lastChanged DESC,
+                    c.id
+                LIMIT ?
+                """;
+        return jdbcTemplate.query(query, new ChatRowMapper(), userId,
+                prevLastChanged.atOffset(ZoneOffset.UTC).toInstant(),
+                prevChatId,
+                prevLastChanged.atOffset(ZoneOffset.UTC).toInstant(),
+                count == null ? Integer.parseInt(Constants.CHATS_ONE_PAGE_COUNT): count);
+    }
+
+    @Override
+    @Transactional
+    public List<Chat> getChatsPaged(long userId, Instant prevLastChanged, Long prevChatId, Integer count) {
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("userId", userId);
+        namedParameters.addValue("prevLastChanged", prevLastChanged == null ? null :
+                prevLastChanged.atOffset(ZoneOffset.UTC).toInstant());
+        namedParameters.addValue("prevChatId", prevChatId);
+        namedParameters.addValue("count", count == null ? null :
+                Integer.parseInt(Constants.CHATS_ONE_PAGE_COUNT));
+        String query = """
+                SELECT
+                    c.id,
+                    c.name,
+                    c.avatarUrl,
+                    c.lastChanged,
+                    c.private
+                FROM
+                    Chats c
+                INNER JOIN
+                    UsersChats uc
+                ON
+                    uc.chatId = c.id
+                WHERE 
+                    uc.userId = :userId
+                AND
+                    -- to prevent missing dates with same values
+                    ((:prevLastChanged IS NULL OR :prevChatId IS NULL) OR 
+                    ((c.lastChanged = :prevLastChanged AND c.id < :prevChatId) OR c.lastChanged < :prevLastChanged))
+                """;
+
+        if ((prevLastChanged == null) || ( prevChatId == null)) {
+            query += """
+                ORDER BY
+                    c.lastChanged DESC
+                LIMIT :count
+                """;
+        }
+        else {
+            query += """
+                ORDER BY
+                    c.lastChanged DESC,
+                    c.id
+                LIMIT :count
+                """;
+        }
+
+        return jdbcTemplate.query(query, new ChatRowMapper(),
+                namedParameters);
     }
 
     @Override
@@ -75,8 +159,8 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public void updateChat(Chat chat) {
-        String query = "UPDATE Chats SET name = ?, avatarUrl = ? WHERE id = ?";
-        jdbcTemplate.update(query, chat.getName(), chat.getAvatarUrl(), chat.getId());
+        String query = "UPDATE Chats SET name = ?, avatarUrl = ?, private = ? WHERE id = ?";
+        jdbcTemplate.update(query, chat.getName(), chat.getAvatarUrl(), chat.getId(), chat.isPrivate());
         query = "DELETE FROM UsersChats WHERE chatId = ?";
         jdbcTemplate.update(query, chat.getId());
         query = "INSERT INTO UsersChats VALUES (?, ?)";
@@ -90,8 +174,22 @@ public class ChatRepositoryImpl implements ChatRepository {
     public void deleteChat(long id) {
         String query = "DELETE FROM Chats WHERE id = ?";
         jdbcTemplate.update(query, id);
-        //Will it delete also from UsersChats table?
-        //query = "DELETE FROM UsersChats WHERE chatId = ?";
-        //jdbcTemplate.update(query, id);
+    }
+
+    @Override
+    public boolean userInChat(long userId, long chatId) {
+        String query = """
+            SELECT EXISTS (
+                SELECT
+                    1
+                FROM
+                    UsersChats uc
+                WHERE
+                    uc.userId = ?
+                    AND uc.chatId = ?
+            )
+            
+        """;
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(query, Boolean.class, userId, chatId));
     }
 }

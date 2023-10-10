@@ -2,10 +2,11 @@ package com.danver.messengerserver.services.interfaces;
 
 import com.danver.messengerserver.models.User;
 import org.springframework.lang.Nullable;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.List;
 
-public interface UserService {
+public interface UserService extends UserDetailsService {
 
     User getUser(long id);
 
@@ -23,9 +24,6 @@ public interface UserService {
 
     /**
      * Search users by name and/or surname
-     * @param name
-     * @param surname
-     * @return
      */
     List<User> searchUsers(@Nullable String name, @Nullable String surname);
 }
