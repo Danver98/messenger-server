@@ -2,12 +2,12 @@ package com.danver.messengerserver.services.implementations;
 
 import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.models.User;
+import com.danver.messengerserver.models.UserRequestDTO;
 import com.danver.messengerserver.repositories.interfaces.UserRepository;
 import com.danver.messengerserver.services.interfaces.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.lang.Nullable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,7 +44,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User createUser(User user) {
         //User has raw password
-        user.setPasswordHash(passwordEncoder.encode(user.getPassword()));
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return this.userRepository.createUser(user).flushPasswordAndSalt();
     }
 
@@ -59,8 +59,15 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<User> searchUsers(@Nullable String name, @Nullable String surname) {
-        return this.userRepository.searchUsers(name, surname);
+    public List<User> list(UserRequestDTO dto) {
+        String name, surname;
+        if (dto.getFilter().getSearch() != null) {
+            String[] params = dto.getFilter().getSearch().split(" ");
+            if (params.length > 1) {
+
+            }
+        }
+        return this.userRepository.list(dto);
     }
 
     @Override
@@ -70,7 +77,7 @@ public class UserServiceImpl implements UserService {
             throw new UsernameNotFoundException(String.format("User %s is not found", email));
         }
         // TODO: check compatibility with local User class
-        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPasswordHash(),
+        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
                  true, true, true, true, new HashSet<>());
     }
 }

@@ -1,16 +1,31 @@
 package com.danver.messengerserver.models;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Instant;
 import java.util.List;
 
 public class Chat {
+    @Getter
     private long id;
+    @Getter
     private String name;
+    @Getter
+    @JsonProperty("avatar")
+    @JsonAlias("avatar")
     private String avatarUrl;
+    @JsonProperty("time")
+    @JsonAlias("time")
     private Instant lastChanged;
 
+    @Setter
     private boolean isPrivate;
+    @Getter
     private List<User> participants;
+    @Getter
     private List<Message> messages;
 
     public Chat() {
@@ -29,26 +44,6 @@ public class Chat {
         this.id = id;
     }
 
-    public long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getAvatarUrl() {
-        return avatarUrl;
-    }
-
-    public List<User> getParticipants() {
-        return participants;
-    }
-
-    public List<Message> getMessages() {
-        return messages;
-    }
-
     public void setName(String name) {
         this.name = name;
     }
@@ -65,10 +60,6 @@ public class Chat {
         }
     }
 
-    public Instant getLastChanged() {
-        return lastChanged;
-    }
-
     public void setLastChanged(Instant lastChanged) {
         this.lastChanged = lastChanged;
     }
@@ -79,9 +70,5 @@ public class Chat {
             return true;
         }
         return isPrivate;
-    }
-
-    public void setPrivate(boolean aPrivate) {
-        isPrivate = aPrivate;
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.OffsetDateTime;
 
 public class MessageRowMapper implements RowMapper<Message> {
     @Override
@@ -16,16 +17,21 @@ public class MessageRowMapper implements RowMapper<Message> {
         message.setId(rs.getString("id"));
         message.setChatId(rs.getLong("chatId"));
         message.setAuthor(
-                new User.Builder()
+                User.builder()
                         .id(rs.getLong("authorId"))
                         .name(rs.getString("name"))
                         .surname(rs.getString("surname"))
                         .avatarUrl(rs.getString("avatarUrl"))
                         .build()
         );
-        message.setCreationTime(rs.getTimestamp("creationTime").toInstant());
-        message.setData(new MessageData(MessageDataType.valueOf((String) rs.getObject("type")),
-                rs.getObject("value")));
+        OffsetDateTime timestamp = rs.getObject("lastChanged", OffsetDateTime.class);
+        message.setTime(timestamp.toInstant());
+        // What's if null?
+        Short valueType = rs.getObject("value_type", Short.class);
+        Short type = rs.getObject("type", Short.class);
+        Object value = rs.getObject("value");
+        message.setData(new MessageData(valueType != null ? MessageDataType.get(valueType.byteValue()) : null, value));
+        message.setType(type != null ? Message.MessageType.get(type.byteValue()) : null);
         return message;
     }
 }

@@ -1,13 +1,13 @@
 package com.danver.messengerserver.services.implementations;
 
 import com.danver.messengerserver.models.Chat;
+import com.danver.messengerserver.models.ChatPagingDTO;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.services.interfaces.ChatService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -27,9 +27,11 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<Chat> getChats(long userId, Instant prevLastChanged, Long prevChatId, Integer count) {
+    public List<Chat> getChats(ChatPagingDTO dto) {
         //return chatRepository.getChatsWithParticipants(userId);
-        return chatRepository.getChats(userId, prevLastChanged, prevChatId, count);
+
+        return chatRepository.getChats(dto.getUserId(), dto.getTime(), dto.getChatId(),
+                dto.getDirection().ordinal(), dto.getCount());
     }
 
     @Override
@@ -55,5 +57,10 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public boolean userInChat(long userId, long chatId) {
         return chatRepository.userInChat(userId, chatId);
+    }
+
+    @Override
+    public void addParticipants(long chatId, long[] users) {
+       this.chatRepository.addParticipants(chatId, users);
     }
 }

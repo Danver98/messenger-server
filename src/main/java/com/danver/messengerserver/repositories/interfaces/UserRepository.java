@@ -1,6 +1,7 @@
 package com.danver.messengerserver.repositories.interfaces;
 
 import com.danver.messengerserver.models.User;
+import com.danver.messengerserver.models.UserRequestDTO;
 import org.springframework.lang.Nullable;
 
 import java.util.List;
@@ -19,5 +20,5 @@ public interface UserRepository {
 
     void deleteUser(long id);
 
-    List<User> searchUsers(@Nullable String name, @Nullable String surname);
+    List<User> list(UserRequestDTO dto);
 }

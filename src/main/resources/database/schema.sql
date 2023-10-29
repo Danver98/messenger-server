@@ -10,8 +10,6 @@ CREATE TABLE IF NOT EXISTS Users
     avatarUrl    varchar(200)
 );
 
-ALTER TABLE IF EXISTS Users ALTER COLUMN salt DROP NOT NULL;
-
 CREATE OR REPLACE FUNCTION all_users_chat_id() RETURNS BIGINT AS '
 BEGIN
     RETURN 6;
@@ -40,12 +38,9 @@ CREATE TABLE IF NOT EXISTS Chats
     name      varchar(100) NOT NULL,
     avatarUrl varchar(200),
     ------------------------ Columns to have been added after initializing basic schema
-    lastChanged timestamp -- supposed to be the time when last message was sent
+    lastChanged timestamp with time zone -- supposed to be the time when last message was sent
 );
 -- Should we create index on LastChanged if it's changed often?
-ALTER TABLE IF EXISTS Chats ADD COLUMN IF NOT EXISTS lastChanged timestamp NOT NULL DEFAULT now()::timestamp;
-ALTER TABLE IF EXISTS Chats ADD COLUMN IF NOT EXISTS private boolean;
-
 --Create type
 DO
 '
@@ -69,8 +64,9 @@ CREATE TABLE IF NOT EXISTS Messages
     id           uuid PRIMARY KEY,
     chatId       bigint    NOT NULL references Chats (id) ON DELETE CASCADE ON UPDATE CASCADE,
     authorId     bigint    NOT NULL references Users (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    creationTime timestamp NOT NULL,
-    type         message_type default 'DEFAULT',
+    lastChanged timestamp with time zone NOT NULL,
+    type        smallint,
+    value_type  smallint,
     -- Currently we only store TEXT
     value        text      NOT NULL
 );
@@ -79,12 +75,12 @@ CREATE OR REPLACE FUNCTION update_chat_last_changed_column() RETURNS TRIGGER AS 
 BEGIN
     IF (TG_OP = ''INSERT'') OR (TG_OP = ''UPDATE'') THEN
         UPDATE Chats
-        SET lastChanged = NEW.creationTime
+        SET lastChanged = NEW.lastChanged
         WHERE id = NEW.chatId;
         RETURN NEW;
     ELSE IF (TG_OP = ''DELETE'') THEN
         UPDATE Chats
-        SET lastChanged = OLD.creationTime
+        SET lastChanged = OLD.lastChanged
         WHERE id = NEW.chatId;
         RETURN OLD;
     end if;

@@ -10,9 +10,7 @@ public interface ChatRepository {
 
     Chat createChat(Chat chat);
 
-    List<Chat> getChats(long userId, Instant prevLastChanged, Long prevChatId, Integer count);
-
-    List<Chat> getChatsPaged(long userId, Instant prevLastChanged, Long prevChatId, Integer count);
+    List<Chat> getChats(long userId, Instant threshold, Long chatIdThreshold, int direction, Integer count);
 
     Chat getChat(long id);
 
@@ -31,4 +29,6 @@ public interface ChatRepository {
      * @return whether user is present in given chat
      */
     boolean userInChat(long userId, long chatId);
+
+    void addParticipants(long chatId, long [] users);
 }

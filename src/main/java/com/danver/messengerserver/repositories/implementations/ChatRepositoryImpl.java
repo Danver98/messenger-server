@@ -1,33 +1,43 @@
 package com.danver.messengerserver.repositories.implementations;
 
 import com.danver.messengerserver.models.Chat;
+import com.danver.messengerserver.models.util.Direction;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.repositories.mappers.ChatRowMapper;
 import com.danver.messengerserver.repositories.mappers.UserDTORowMapper;
 import com.danver.messengerserver.utils.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Repository
 public class ChatRepositoryImpl implements ChatRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    private record ChatPagingDtoProperTime(Long userId, OffsetDateTime time, Long chatId, Direction direction, Integer count) {
+    }
 
     //Chats TABLE FIELDS:
     //id, name, avatarUrl, lastChanged, [participants], [messages]?
     // TODO: optimize queries
 
     @Autowired
-    public ChatRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public ChatRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -45,52 +55,21 @@ public class ChatRepositoryImpl implements ChatRepository {
 
     @Override
     @Transactional
-    public List<Chat> getChats(long userId, Instant prevLastChanged, Long prevChatId, Integer count) {
-        String query = """
-                SELECT
-                    c.id,
-                    c.name,
-                    c.avatarUrl,
-                    c.lastChanged,
-                    c.private
-                FROM
-                    Chats c
-                INNER JOIN
-                    UsersChats uc
-                ON
-                    uc.chatId = c.id
-                WHERE 
-                    uc.userId = ?
-                """;
-        if ((prevLastChanged == null) || ( prevChatId == null))
-            return jdbcTemplate.query(query, new ChatRowMapper(), userId);
-
-        query = query + """
-                AND
-                    ((c.lastChanged = ? AND c.id > ?) OR c.lastChanged < ?) -- to prevent missing dates with same values
-                ORDER BY
-                    c.lastChanged DESC,
-                    c.id
-                LIMIT ?
-                """;
-        return jdbcTemplate.query(query, new ChatRowMapper(), userId,
-                prevLastChanged.atOffset(ZoneOffset.UTC).toInstant(),
-                prevChatId,
-                prevLastChanged.atOffset(ZoneOffset.UTC).toInstant(),
-                count == null ? Integer.parseInt(Constants.CHATS_ONE_PAGE_COUNT): count);
-    }
-
-    @Override
-    @Transactional
-    public List<Chat> getChatsPaged(long userId, Instant prevLastChanged, Long prevChatId, Integer count) {
+    public List<Chat> getChats(long userId, Instant threshold, Long chatIdThreshold, int direction, Integer count) {
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("userId", userId);
-        namedParameters.addValue("prevLastChanged", prevLastChanged == null ? null :
-                prevLastChanged.atOffset(ZoneOffset.UTC).toInstant());
-        namedParameters.addValue("prevChatId", prevChatId);
-        namedParameters.addValue("count", count == null ? null :
-                Integer.parseInt(Constants.CHATS_ONE_PAGE_COUNT));
-        String query = """
+        namedParameters.addValue("threshold", threshold);
+        namedParameters.addValue("chatIdThreshold", chatIdThreshold);
+        namedParameters.addValue("direction", direction == Direction.FUTURE.ordinal() ? '>' : '<');
+        char compareSign =  direction == Direction.FUTURE.ordinal() ? '>' : '<';
+        String order = direction == Direction.FUTURE.ordinal() ? "ASC" : "DESC";
+        namedParameters.addValue("orderDirection", direction == Direction.FUTURE.ordinal() ? "ASC" : "DESC");
+        namedParameters.addValue("count", count == null ? Integer.parseInt(Constants.CHATS_ONE_PAGE_COUNT) : count);
+        Direction dir = direction == 0 ? Direction.FUTURE : Direction.PAST;
+        ChatPagingDtoProperTime dto = new ChatPagingDtoProperTime(userId,
+                threshold == null ? null : threshold.atOffset(ZoneOffset.UTC),
+                chatIdThreshold, dir, count);
+        String query = String.format("""
                 SELECT
                     c.id,
                     c.name,
@@ -106,29 +85,23 @@ public class ChatRepositoryImpl implements ChatRepository {
                 WHERE 
                     uc.userId = :userId
                 AND
-                    -- to prevent missing dates with same values
-                    ((:prevLastChanged IS NULL OR :prevChatId IS NULL) OR 
-                    ((c.lastChanged = :prevLastChanged AND c.id < :prevChatId) OR c.lastChanged < :prevLastChanged))
-                """;
-
-        if ((prevLastChanged == null) || ( prevChatId == null)) {
-            query += """
+                    CASE
+                        WHEN :time::timestamp with time zone IS NULL
+                            THEN TRUE
+                        ELSE
+                            CASE
+                                    WHEN :chatId IS NULL
+                                        THEN c.lastChanged %c :time::timestamp with time zone
+                                    ELSE
+                                        (c.lastChanged, c.id) %c (:time::timestamp with time zone, :chatId)
+                            END
+                    END
                 ORDER BY
-                    c.lastChanged DESC
-                LIMIT :count
-                """;
-        }
-        else {
-            query += """
-                ORDER BY
-                    c.lastChanged DESC,
+                    c.lastChanged %s,
                     c.id
-                LIMIT :count
-                """;
-        }
-
-        return jdbcTemplate.query(query, new ChatRowMapper(),
-                namedParameters);
+                FETCH FIRST :count ROWS ONLY
+                """, compareSign, compareSign, order);
+        return namedParameterJdbcTemplate.query(query, new BeanPropertySqlParameterSource(dto), new ChatRowMapper());
     }
 
     @Override
@@ -152,7 +125,8 @@ public class ChatRepositoryImpl implements ChatRepository {
         Chat chat = jdbcTemplate.queryForObject(query, new ChatRowMapper(), id);
         query = "SELECT id, name, surname, email, avatarUrl FROM Users INNER JOIN UsersChats ON UsersChats.userId = Users.id " +
                 "WHERE UsersChats.chatId = ?";
-        chat.setParticipants(jdbcTemplate.query(query, new UserDTORowMapper(), id));
+        if (chat != null)
+            chat.setParticipants(jdbcTemplate.query(query, new UserDTORowMapper(), id));
         return chat;
     }
 
@@ -191,5 +165,19 @@ public class ChatRepositoryImpl implements ChatRepository {
             
         """;
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject(query, Boolean.class, userId, chatId));
+    }
+
+    @Override
+    public void addParticipants(long chatId, long[] users) {
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("chatId", chatId);
+        namedParameters.addValue("users", users);
+        String query= """
+            insert into
+                "UsersChats" (chatId, userId)
+            select
+                :chatId, unnest(:users)
+        """;
+        jdbcTemplate.update(query, namedParameters);
     }
 }

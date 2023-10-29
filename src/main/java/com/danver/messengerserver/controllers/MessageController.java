@@ -3,6 +3,7 @@ package com.danver.messengerserver.controllers;
 import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.MessageDTO;
+import com.danver.messengerserver.models.MessageRequestDTO;
 import com.danver.messengerserver.services.interfaces.ChatService;
 import com.danver.messengerserver.services.interfaces.MessageService;
 import com.danver.messengerserver.utils.Constants;
@@ -21,7 +22,6 @@ import org.springframework.web.context.request.async.DeferredResult;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
 
@@ -41,33 +41,12 @@ public class MessageController {
     public MessageController(MessageService messageService, ChatService chatService, SimpMessagingTemplate messagingTemplate) {
         this.messageService = messageService;
         this.chatService = chatService;
-        this.messagingTemplate= messagingTemplate;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @GetMapping("/secret")
     String getSecret() {
         return "This is a secret message!";
-    }
-
-    @GetMapping("/{chatId}")
-    DeferredResult<ResponseEntity<List<Message>>> getMessagesByDate(@PathVariable long chatId,
-                                                    @RequestParam(required = false)
-                                                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-                                                    @RequestParam(required = false)
-                                                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-                                                    @RequestParam(required = false,defaultValue ="false")
-                                                    Boolean firstLoad, // Whether to load messages at once or to wait
-                                                    @RequestParam(required = false) Integer lastCount) {
-        // TODO: check access
-//        if (!chatService.userInChat(userId, chatId)) {
-//            throw new AuthorizedAccessException();
-//        }
-        from = from == null ? Instant.EPOCH : from.atOffset(ZoneOffset.UTC).toInstant();
-        to = to == null ? Instant.now() : to.atOffset(ZoneOffset.UTC).toInstant();
-        DeferredResult<ResponseEntity<List<Message>>> deferredResult = new DeferredResult<>(timeoutValue, timeoutResult);
-        List<Message> messages = messageService.getMessages(chatId, from, to);
-        deferredResult.setResult(new ResponseEntity<>(messages, HttpStatus.OK));
-        return deferredResult;
     }
 
     @GetMapping("/paged/{chatId}")
@@ -81,8 +60,7 @@ public class MessageController {
                                                                    @RequestParam(required = false)
                                                                    String cursorMsgId,
                                                                    @RequestParam(required = false)
-                                                                   Integer count)
-    {
+                                                                   Integer count) {
         // TODO: - dispose of DB call for each check (preferably use Redis);
         // TODO (optionally): extract this logic to filter/interceptors level
         // TODO: check access
@@ -100,12 +78,30 @@ public class MessageController {
     // Maybe we should split methods to send data either to private chat or to group chat (look https://www.baeldung.com/spring-websockets-send-message-to-user)
 
 
+    @PostMapping("/")
+    ResponseEntity<List<Message>> getMessagesPaged(@RequestBody MessageRequestDTO dto) {
+        // TODO: check authority
+        List<Message> messages = messageService.getMessages(dto);
+        return new ResponseEntity<>(messages, HttpStatus.OK);
+    }
+
+    @PostMapping("/create")
+    ResponseEntity<?> createMessageHTTP(@RequestBody Message dto) {
+        try {
+            Message message = messageService.createMessage(dto);
+            return new ResponseEntity<>(message, HttpStatus.OK);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return null;
+    }
+
     @MessageMapping("/chat/send-message")
     ResponseEntity<?> createMessage(@Payload MessageDTO messageDTO) {
         // TODO: check user can send message
         String time = new SimpleDateFormat("HH:mm").format(new Date());
         String message = messageDTO.getTestAuthor() + ": " + messageDTO.getTestText() + " (" + time + ")";
-        messagingTemplate.convertAndSend( Constants.WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME, message);
+        messagingTemplate.convertAndSend(Constants.WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME, message);
         return new ResponseEntity<>(message, HttpStatus.OK);
         //Message message = messageDTO.getMessage();
 //        if (!chatService.userInChat(message.getAuthorId(), message.getChatId())) {
@@ -116,14 +112,14 @@ public class MessageController {
         //if (messageDTO.chatIsPrivate()) {
 //            messagingTemplate.convertAndSendToUser(String.valueOf(messageDTO.getReceiverId()),
 //                    message.getChatId() + "/user/queue/messages", message);
-            //TODO: full destination should look like 'chat/{chatId}/private/queue/messages
-            // As possible solution we can send to certain user, but that'll lead to duplication of channels, won't it?
-            //messagingTemplate.convertAndSend("/chat/" + message.getChatId() + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
-            //messagingTemplate.convertAndSend("/chat/" + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
+        //TODO: full destination should look like 'chat/{chatId}/private/queue/messages
+        // As possible solution we can send to certain user, but that'll lead to duplication of channels, won't it?
+        //messagingTemplate.convertAndSend("/chat/" + message.getChatId() + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
+        //messagingTemplate.convertAndSend("/chat/" + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
         //} else {
-            //TODO: full destination should look like 'chat/{chatId}/queue/messages
-           // messagingTemplate.convertAndSend( "/chat/" + message.getChatId() + Constants.WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME, message);
-            //messagingTemplate.convertAndSend("/chat/" + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
+        //TODO: full destination should look like 'chat/{chatId}/queue/messages
+        // messagingTemplate.convertAndSend( "/chat/" + message.getChatId() + Constants.WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME, message);
+        //messagingTemplate.convertAndSend("/chat/" + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
         //}
         //return new ResponseEntity<>(message, HttpStatus.CREATED);
     }

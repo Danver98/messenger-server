@@ -1,6 +1,8 @@
 package com.danver.messengerserver.repositories.implementations;
 
 import com.danver.messengerserver.models.User;
+import com.danver.messengerserver.models.UserRequestDTO;
+import com.danver.messengerserver.models.UserRequestFilter;
 import com.danver.messengerserver.repositories.interfaces.UserRepository;
 import com.danver.messengerserver.repositories.mappers.UserDTORowMapper;
 import com.danver.messengerserver.repositories.mappers.UserRowMapper;
@@ -8,8 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Types;
 import java.util.List;
 
 @Slf4j
@@ -17,13 +22,15 @@ import java.util.List;
 public class UserRepositoryImpl implements UserRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     //USERS TABLE FIELDS:
     //id, name, surname, email, salt, passwordHash, avatarUrl
 
     @Autowired
-    public UserRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public UserRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -31,7 +38,7 @@ public class UserRepositoryImpl implements UserRepository {
         String query = "INSERT INTO Users (name, surname, email, salt, passwordHash, avatarUrl)" +
                 " VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
         long id = jdbcTemplate.queryForObject(query, Long.class, user.getName(), user.getSurname(),
-                user.getEmail(), user.getSalt(), user.getPasswordHash(), user.getAvatarUrl());
+                user.getEmail(), user.getSalt(), user.getPassword(), user.getAvatarUrl());
         user.setId(id);
         return user;
     }
@@ -62,13 +69,13 @@ public class UserRepositoryImpl implements UserRepository {
         String query = "UPDATE Users SET name = ?, surname = ?, email = ?, $PASSWORD " +
                 "avatarUrl = ? WHERE id = ?";
         String withPassword = "salt = ?, passwordHash = ?,";
-        if (user.getSalt() == null || user.getPasswordHash() == null) {
+        if (user.getSalt() == null || user.getPassword() == null) {
             query = query.replace("$PASSWORD", "");
         } else {
             query = query.replace("$PASSWORD", withPassword);
         }
         jdbcTemplate.update(query, user.getName(), user.getSurname(), user.getEmail(), user.getSalt(),
-                user.getPasswordHash(), user.getAvatarUrl(), user.getId());
+                user.getPassword(), user.getAvatarUrl(), user.getId());
     }
 
     @Override
@@ -78,17 +85,67 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public List<User> searchUsers(String name, String surname) {
-        String query;
-        if (name != null && surname != null) {
-            query = "SELECT id, name, surname, email, avatarUrl FROM Users WHERE name = ? AND surname = ?";
-            return this.jdbcTemplate.query(query, new UserDTORowMapper(), name, surname);
-        } else if (name == null) {
-            query = "SELECT id, name, surname, email, avatarUrl FROM Users WHERE surname = ?";
-            return this.jdbcTemplate.query(query, new UserDTORowMapper(), surname);
+    public List<User> list(UserRequestDTO dto) {
+        String [] params;
+        UserRequestFilter filter = dto.getFilter();
+        String search = filter.getSearch();
+        if (search == null || search.isEmpty()) {
+            params = new String[] {null, null};
         } else {
-            query = "SELECT id, name, surname, email, avatarUrl FROM Users WHERE name = ?";
-            return this.jdbcTemplate.query(query, new UserDTORowMapper(), name);
+            params = search.split(" ");
         }
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("name", params[0], Types.VARCHAR);
+        namedParameters.addValue("surname", params.length > 1 ? params[1] : null, Types.VARCHAR);
+        namedParameters.addValue("chatId", filter.getChatId(), Types.BIGINT);
+        namedParameters.addValue("exclude", filter.getExclude(), Types.BOOLEAN);
+        String query = """
+            select
+                u.id,
+                u.name,
+                u.surname,
+                u.email,
+                u.avatarUrl,
+                u.passwordhash
+            from
+                Users u
+            where
+                case
+                    when :name is not null
+                        then
+                            (u.name ilike '%' || :name || '%'
+                            or u.surname ilike '%' || :name || '%')
+                    else
+                        true
+                end
+                and
+                case
+                    when :surname is not null
+                        then
+                            (u.name ilike '%' || :surname || '%'
+                             or u.surname ilike '%' || :surname || '%')
+                    else
+                        true
+                end
+            fetch first 50 rows only
+        """;
+/*        + ( filter.getChatId() != null ?
+                """
+                    join UsersChats uc
+                        on u.id = uc.userId
+                        and case
+                            when :exclude
+                                then uc.chatId is distinct from :chatId
+                            else
+                                uc.chatId is not distinct from :chatId
+                        end
+
+                """
+                :
+                """
+                """
+        )
+                +*/
+        return namedParameterJdbcTemplate.query(query, namedParameters, new UserRowMapper());
     }
 }

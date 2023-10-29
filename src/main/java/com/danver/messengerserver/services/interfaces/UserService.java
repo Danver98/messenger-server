@@ -1,7 +1,7 @@
 package com.danver.messengerserver.services.interfaces;
 
 import com.danver.messengerserver.models.User;
-import org.springframework.lang.Nullable;
+import com.danver.messengerserver.models.UserRequestDTO;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.List;
@@ -25,5 +25,5 @@ public interface UserService extends UserDetailsService {
     /**
      * Search users by name and/or surname
      */
-    List<User> searchUsers(@Nullable String name, @Nullable String surname);
+    List<User> list(UserRequestDTO dto);
 }

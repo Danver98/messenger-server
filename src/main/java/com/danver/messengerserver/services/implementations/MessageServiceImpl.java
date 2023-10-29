@@ -2,6 +2,8 @@ package com.danver.messengerserver.services.implementations;
 
 import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.models.Message;
+import com.danver.messengerserver.models.MessageDataType;
+import com.danver.messengerserver.models.MessageRequestDTO;
 import com.danver.messengerserver.repositories.interfaces.MessageRepository;
 import com.danver.messengerserver.services.interfaces.MessageService;
 import org.slf4j.Logger;
@@ -25,10 +27,6 @@ public class MessageServiceImpl implements MessageService {
         this.messageRepository = messageRepository;
     }
 
-    @Override
-    public List<Message> getMessages(long chatId, Instant from, Instant to) {
-        return messageRepository.getMessages(chatId, from, to);
-    }
 
     @Override
     public List<Message> getMessagesPaged(long chatId, Instant before, Instant after, String cursorMsgId, Integer count) {
@@ -36,11 +34,22 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    public List<Message> getMessages(MessageRequestDTO dto) {
+        return messageRepository.getMessages(dto);
+    }
+
+    @Override
     public Message createMessage(Message message) {
         logger.info("Generating id for a new message");
         String id = UUID.randomUUID().toString();
         message.setId(id);
-        message.setCreationTime(Instant.now());
+        message.setTime(Instant.now());
+        if (message.getType() == null) {
+            message.setType(Message.MessageType.CHAT);
+        }
+        if (message.getData() != null && message.getData().getType() == null) {
+            message.getData().setType(MessageDataType.DEFAULT);
+        }
         messageRepository.createMessage(message);
         return message;
     }

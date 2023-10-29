@@ -1,6 +1,7 @@
 package com.danver.messengerserver.services.interfaces;
 
 import com.danver.messengerserver.models.Chat;
+import com.danver.messengerserver.models.ChatPagingDTO;
 import com.danver.messengerserver.models.User;
 
 import java.time.Instant;
@@ -15,14 +16,7 @@ public interface ChatService {
       */
      Chat createChat(Chat chat);
 
-     /**
-      *
-      * @param prevLastChanged time since we start selecting chats by the time they were last updated;
-      *                        if not specified, method returns all chats for given user
-      * @param prevChatId id of the last chat from previous selection by client
-      * @param count number of records to give back
-      */
-     List<Chat> getChats(long userId, Instant prevLastChanged, Long prevChatId, Integer count);
+     List<Chat> getChats(ChatPagingDTO dto);
 
      Chat getChat(long id);
 
@@ -37,4 +31,6 @@ public interface ChatService {
       * @return whether user is present in given chat
       */
      boolean userInChat(long userId, long chatId);
+
+     void addParticipants(long chatId, long[] users);
 }

@@ -1,6 +1,7 @@
 package com.danver.messengerserver.controllers;
 
 import com.danver.messengerserver.models.User;
+import com.danver.messengerserver.models.UserRequestDTO;
 import com.danver.messengerserver.services.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -26,13 +27,9 @@ public class UserController {
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
-    @GetMapping("/search")
-    ResponseEntity<List<User>> searchUsers(@RequestParam(required = false) String name,
-                                           @RequestParam(required = false) String surname) {
-        if (name == null && surname == null) {
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        }
-        List<User> found = this.userService.searchUsers(name, surname);
+    @PostMapping("/")
+    ResponseEntity<List<User>> list(@RequestBody UserRequestDTO dto) {
+        List<User> found = this.userService.list(dto);
         return new ResponseEntity<>(found, !found.isEmpty() ? HttpStatus.OK : HttpStatus.NO_CONTENT);
     }
 

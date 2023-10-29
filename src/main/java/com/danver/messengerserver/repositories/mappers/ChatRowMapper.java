@@ -5,7 +5,9 @@ import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
 import java.time.Instant;
+import java.time.OffsetDateTime;
 
 public class ChatRowMapper implements RowMapper<Chat> {
     @Override
@@ -14,7 +16,9 @@ public class ChatRowMapper implements RowMapper<Chat> {
         chat.setId(rs.getLong("id"));
         chat.setName(rs.getString("name"));
         chat.setAvatarUrl(rs.getString("avatarUrl"));
-        chat.setLastChanged(rs.getObject("lastChanged", Instant.class));
+        OffsetDateTime timestamp = rs.getObject("lastChanged", OffsetDateTime.class);
+        chat.setLastChanged(timestamp.toInstant());
+
         chat.setPrivate(rs.getBoolean("private"));
         return chat;
     }

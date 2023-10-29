@@ -33,7 +33,10 @@ public class SecurityConfig {
             "/",
             "/authenticate",
             "/login",
-            "/config/**"
+            "/config/**",
+            "/chats/**", // TODO: remove
+            "/messages/**", // TODO: remove
+            "/users/**" // TODO: remove
     };
     @Autowired
     public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
