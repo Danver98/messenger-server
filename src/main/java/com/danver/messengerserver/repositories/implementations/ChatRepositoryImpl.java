@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Repository
@@ -70,7 +69,106 @@ public class ChatRepositoryImpl implements ChatRepository {
                 threshold == null ? null : threshold.atOffset(ZoneOffset.UTC),
                 chatIdThreshold, dir, count);
         String query = String.format("""
-                SELECT
+                with last_msgs as (
+                    select
+                        m.chatId,
+                        m.id,
+                        m.type,
+                        m.value_type,
+                        m.value,
+                        m.lastChanged,
+                        author.id "authorId",
+                        author.name "authorName",
+                        author.surname "authorSurname",
+                        author.avatarUrl "authorAvatarUrl"
+                    from
+                        Messages m
+                    join (
+                        select
+                            m.chatId,
+                            max(m.lastChanged) lastChanged
+                        from
+                            Messages m
+                        group by
+                            m.chatId
+                    ) max_data
+                        on m.chatId = max_data.chatId
+                        and m.lastChanged = max_data.lastChanged
+                    join Users author
+                        on m.authorId = author.id
+                )
+                select
+                    c.id,
+                    c.name,
+                    c.avatarUrl,
+                    c.lastChanged,
+                    c.private,
+                    -- last message in chat
+                    last_msg.id "lastMsg.id",
+                    last_msg.chatId "lastMsg.chatId",
+                    last_msg.type "lastMsg.type",
+                    last_msg.value_type "lastMsg.valueType",
+                    last_msg.value "lastMsg.value",
+                    last_msg.lastChanged "lastMsg.lastChanged",
+                    last_msg."authorId" "lastMsg.authorId",
+                    last_msg."authorName" "lastMsg.authorName",
+                    last_msg."authorSurname" "lastMsg.authorSurname",
+                    last_msg."authorAvatarUrl" "lastMsg.authorAvatarUrl"
+                from
+                    Chats c
+                join
+                    UsersChats uc
+                on
+                    uc.chatId = c.id
+                LEFT JOIN LATERAL (
+                    select
+                        *
+                    from
+                        last_msgs m
+                    where
+                        m.chatId = c.id
+                ) last_msg
+                ON TRUE
+                WHERE
+                    uc.userId = :userId
+                AND
+                    CASE
+                        WHEN :time::timestamp with time zone IS NULL
+                            THEN TRUE
+                        ELSE
+                            CASE
+                                    WHEN :chatId IS NULL
+                                        THEN c.lastChanged %c :time::timestamp with time zone
+                                    ELSE
+                                        (c.lastChanged, c.id) %c (:time::timestamp with time zone, :chatId)
+                            END
+                    END
+                ORDER BY
+                    c.lastChanged %s,
+                    c.id
+                FETCH FIRST :count ROWS ONLY
+                """, compareSign, compareSign, order);
+        return namedParameterJdbcTemplate.query(query, new BeanPropertySqlParameterSource(dto), new ChatRowMapper());
+    }
+
+
+    @Transactional
+    public List<Chat> getChatsWithLastMsg(long userId, Instant threshold, Long chatIdThreshold, int direction, Integer count) {
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("userId", userId);
+        namedParameters.addValue("threshold", threshold);
+        namedParameters.addValue("chatIdThreshold", chatIdThreshold);
+        namedParameters.addValue("direction", direction == Direction.FUTURE.ordinal() ? '>' : '<');
+        char compareSign =  direction == Direction.FUTURE.ordinal() ? '>' : '<';
+        String order = direction == Direction.FUTURE.ordinal() ? "ASC" : "DESC";
+        namedParameters.addValue("orderDirection", direction == Direction.FUTURE.ordinal() ? "ASC" : "DESC");
+        namedParameters.addValue("count", count == null ? Integer.parseInt(Constants.CHATS_ONE_PAGE_COUNT) : count);
+        Direction dir = direction == 0 ? Direction.FUTURE : Direction.PAST;
+        ChatPagingDtoProperTime dto = new ChatPagingDtoProperTime(userId,
+                threshold == null ? null : threshold.atOffset(ZoneOffset.UTC),
+                chatIdThreshold, dir, count);
+        String query = String.format("""
+                select
                     c.id,
                     c.name,
                     c.avatarUrl,
@@ -107,10 +205,10 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public List<Chat> getChatsWithParticipants(long userId) {
-        String query = "SELECT * FROM Chats INNER JOIN UsersChats ON UsersChats.chatId = Chats.id" +
+        String query = "select * FROM Chats INNER JOIN UsersChats ON UsersChats.chatId = Chats.id" +
                 " WHERE UsersChats.userId = ?";
         List<Chat> chats = jdbcTemplate.query(query, new ChatRowMapper(), userId);
-        query = "SELECT id, name, surname, email, avatarUrl FROM Users INNER JOIN UsersChats ON UsersChats.userId = Users.id " +
+        query = "select id, name, surname, email, avatarUrl FROM Users INNER JOIN UsersChats ON UsersChats.userId = Users.id " +
                 "WHERE UsersChats.chatId = ?";
         for (Chat chat : chats) {
             chat.setParticipants(jdbcTemplate.query(query, new UserDTORowMapper(), chat.getId()));
@@ -121,9 +219,9 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public Chat getChat(long id) {
-        String query = "SELECT * FROM Chats WHERE id = ?";
+        String query = "select * FROM Chats WHERE id = ?";
         Chat chat = jdbcTemplate.queryForObject(query, new ChatRowMapper(), id);
-        query = "SELECT id, name, surname, email, avatarUrl FROM Users INNER JOIN UsersChats ON UsersChats.userId = Users.id " +
+        query = "select id, name, surname, email, avatarUrl FROM Users INNER JOIN UsersChats ON UsersChats.userId = Users.id " +
                 "WHERE UsersChats.chatId = ?";
         if (chat != null)
             chat.setParticipants(jdbcTemplate.query(query, new UserDTORowMapper(), id));
@@ -153,8 +251,8 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     public boolean userInChat(long userId, long chatId) {
         String query = """
-            SELECT EXISTS (
-                SELECT
+            select EXISTS (
+                select
                     1
                 FROM
                     UsersChats uc

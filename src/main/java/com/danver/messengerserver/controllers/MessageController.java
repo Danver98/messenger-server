@@ -7,6 +7,10 @@ import com.danver.messengerserver.models.MessageRequestDTO;
 import com.danver.messengerserver.services.interfaces.ChatService;
 import com.danver.messengerserver.services.interfaces.MessageService;
 import com.danver.messengerserver.utils.Constants;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +24,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.async.DeferredResult;
 
-import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -35,13 +37,15 @@ public class MessageController {
     private final ChatService chatService;
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final ObjectMapper objectMapper;
     private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
 
     @Autowired
-    public MessageController(MessageService messageService, ChatService chatService, SimpMessagingTemplate messagingTemplate) {
+    public MessageController(MessageService messageService, ChatService chatService, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
         this.messageService = messageService;
         this.chatService = chatService;
         this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/secret")
@@ -91,37 +95,42 @@ public class MessageController {
             Message message = messageService.createMessage(dto);
             return new ResponseEntity<>(message, HttpStatus.OK);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+
         }
         return null;
     }
 
-    @MessageMapping("/chat/send-message")
-    ResponseEntity<?> createMessage(@Payload MessageDTO messageDTO) {
-        // TODO: check user can send message
-        String time = new SimpleDateFormat("HH:mm").format(new Date());
-        String message = messageDTO.getTestAuthor() + ": " + messageDTO.getTestText() + " (" + time + ")";
-        messagingTemplate.convertAndSend(Constants.WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME, message);
-        return new ResponseEntity<>(message, HttpStatus.OK);
-        //Message message = messageDTO.getMessage();
-//        if (!chatService.userInChat(message.getAuthorId(), message.getChatId())) {
-//            throw new AuthorizedAccessException();
-//        }
-        //message = messageService.createMessage(message);
-        // If chat is private, send to certain user; else send to everybody in the queue/topic
-        //if (messageDTO.chatIsPrivate()) {
-//            messagingTemplate.convertAndSendToUser(String.valueOf(messageDTO.getReceiverId()),
-//                    message.getChatId() + "/user/queue/messages", message);
-        //TODO: full destination should look like 'chat/{chatId}/private/queue/messages
-        // As possible solution we can send to certain user, but that'll lead to duplication of channels, won't it?
-        //messagingTemplate.convertAndSend("/chat/" + message.getChatId() + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
-        //messagingTemplate.convertAndSend("/chat/" + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
-        //} else {
-        //TODO: full destination should look like 'chat/{chatId}/queue/messages
-        // messagingTemplate.convertAndSend( "/chat/" + message.getChatId() + Constants.WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME, message);
-        //messagingTemplate.convertAndSend("/chat/" + Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME, message);
-        //}
-        //return new ResponseEntity<>(message, HttpStatus.CREATED);
+    @MessageMapping("/chats/private/send-message")
+    ResponseEntity<?> sendMessagePrivate(@Payload MessageDTO dto) {
+        // TODO: check authority
+        try {
+            messageService.createMessage(dto.getMessage());
+            messagingTemplate.convertAndSendToUser(
+                    Long.toString(dto.getMessage().getReceiverId()),
+                    Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages",
+                    dto.getMessage());
+            return new ResponseEntity<>(dto.getMessage(), HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @MessageMapping("/chats/public/send-message")
+    ResponseEntity<?> sendMessage(@Payload String messageDTO) {
+        // Unfortunately cannot find a workaround to pass MessageDTO directly
+        // TODO: check authority
+        // TODO: append auxiliary info (ex. author's avatar url, name, surname) if absent
+        try {
+            MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
+            messageService.createMessage(dto.getMessage());
+            messagingTemplate.convertAndSend(
+                    Constants.MESSAGE_BROKER_TOPIC_PREFIX + "/chats/" + dto.getMessage().getChatId() + "/messages",
+                    dto.getMessage()
+                    );
+            return new ResponseEntity<>(dto.getMessage(), HttpStatus.OK);
+        } catch (JsonProcessingException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @MessageMapping("/chat/add-user")

@@ -27,6 +27,8 @@ public class Chat {
     private List<User> participants;
     @Getter
     private List<Message> messages;
+    @Getter
+    private Message lastMessage;
 
     public Chat() {
 
@@ -70,5 +72,9 @@ public class Chat {
             return true;
         }
         return isPrivate;
+    }
+
+    public void setLastMessage(Message lastMessage) {
+        this.lastMessage = lastMessage;
     }
 }

@@ -39,10 +39,10 @@ public class ConfigServiceImpl implements ConfigService {
         // Get context-path
         //TODO: init config from DB before Start
         this.configInfo.put("server.servlet.context-path", env.getProperty("server.servlet.context-path"));
-        this.configInfo.put("websocket.message-service.stomp-endpoint", Constants.WS_MESSAGE_SERVICE_STOMP_ENDPOINT);
-        this.configInfo.put("websocket.message-service.application-destination-prefix", Constants.WS_MESSAGE_SERVICE_APP_PREFIX);
-        this.configInfo.put("websocket.message-service.broker-prefix", new ArrayList<>(List.of(Constants.WS_MESSAGE_SERVICE_TOPIC)));
-        this.configInfo.put("websocket.message-service.public-chat-queue-name", Constants.WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME);
-        this.configInfo.put("websocket.message-service.private-chat-queue-name", Constants.WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME);
+        this.configInfo.put("websocket.message-service.stomp-endpoint", Constants.MESSAGE_BROKER_DESTINATION_PREFIX);
+        this.configInfo.put("websocket.message-service.application-destination-prefix", Constants.MESSAGE_BROKER_APPLICATION_DESTINATION_PREFIX);
+        this.configInfo.put("websocket.message-service.broker-prefix", new ArrayList<>(List.of(Constants.MESSAGE_BROKER_TOPIC_PREFIX)));
+        this.configInfo.put("websocket.message-service.public-chat-queue-name", Constants.MESSAGE_BROKER_CHAT_QUEUE_NAME);
+        this.configInfo.put("websocket.message-service.private-chat-queue-name", Constants.MESSAGE_BROKER_PRIVATE_CHAT_QUEUE_NAME);
     }
 }

@@ -3,17 +3,19 @@ package com.danver.messengerserver.utils;
 public class Constants {
     public static final String USER_JWT_EMAIL_KEY = "email";
     public static final String CHATS_ONE_PAGE_COUNT = "50";
-    public static final String WS_MESSAGE_SERVICE_STOMP_ENDPOINT = "/ws";
+    public static final String MESSAGE_BROKER_DESTINATION_PREFIX = "/ws";
 
     // Path prefix for incoming requests to be processed by methods with @MessageMapping annotation
-    public static final String WS_MESSAGE_SERVICE_APP_PREFIX = "/websocket";
+    public static final String MESSAGE_BROKER_APPLICATION_DESTINATION_PREFIX = "/app";
 
-    // Path prefix where we send back messages
-    public static final String WS_MESSAGE_SERVICE_TOPIC = "/topic";
-    public static final String WS_MESSAGE_SERVICE_USER_DESTINATION_PREFIX ="/user";
+    // Path prefix where we send back messages for topics (public paths)
+    public static final String MESSAGE_BROKER_TOPIC_PREFIX = "/topic";
+    // Path prefix where we send back messages for topics (private paths)
+    public static final String MESSAGE_BROKER_QUEUE_PREFIX = "/queue";
+    public static final String MESSAGE_BROKER_USER_DESTINATION_PREFIX ="/user";
 
-    public static final String WS_MESSAGE_SERVICE_PRIVATE_CHAT_QUEUE_NAME = "/topic/chat/private/queue/messages";
+    public static final String MESSAGE_BROKER_PRIVATE_CHAT_QUEUE_NAME = "/topic/chat/private/queue/messages";
 
-    public static final String WS_MESSAGE_SERVICE_CHAT_QUEUE_NAME = "/topic/chat/queue/messages";
+    public static final String MESSAGE_BROKER_CHAT_QUEUE_NAME = "/topic/chat/queue/messages";
 
 }

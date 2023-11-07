@@ -14,15 +14,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         //registry.addEndpoint(Constants.WS_MESSAGE_SERVICE_STOMP_ENDPOINT);
-        registry.addEndpoint(Constants.WS_MESSAGE_SERVICE_STOMP_ENDPOINT)
-                //.setAllowedOrigins("*")
+        registry.addEndpoint(Constants.MESSAGE_BROKER_DESTINATION_PREFIX)
+                .setAllowedOrigins("*")
                 .withSockJS();
+        registry.addEndpoint(Constants.MESSAGE_BROKER_DESTINATION_PREFIX)
+                .setAllowedOrigins("*");
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker(Constants.WS_MESSAGE_SERVICE_TOPIC);
-        registry.setApplicationDestinationPrefixes(Constants.WS_MESSAGE_SERVICE_APP_PREFIX);
-        //registry.setUserDestinationPrefix(Constants.WS_MESSAGE_SERVICE_USER_DESTINATION_PREFIX);
+        registry.enableSimpleBroker(Constants.MESSAGE_BROKER_TOPIC_PREFIX, Constants.MESSAGE_BROKER_QUEUE_PREFIX);
+        registry.setApplicationDestinationPrefixes(Constants.MESSAGE_BROKER_APPLICATION_DESTINATION_PREFIX);
+        registry.setUserDestinationPrefix(Constants.MESSAGE_BROKER_USER_DESTINATION_PREFIX);
     }
 }

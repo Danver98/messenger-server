@@ -19,6 +19,7 @@ public class Message {
     private String id;
     private long chatId;
     private User author;
+    private long receiverId;
     private Instant time;
     private MessageData data;
     private MessageType type;
@@ -27,7 +28,8 @@ public class Message {
         @JsonEnumDefaultValue
         CHAT(1),
         JOIN(2),
-        LEAVE(3);
+        INVITATION(3),
+        LEAVE(4);
 
         private final byte value;
         private static final Map<Byte, MessageType> map = new HashMap<>();
@@ -48,23 +50,6 @@ public class Message {
         public static MessageType get(byte value) {
             return MessageType.map.get(value);
         }
-    }
-
-    public Message(String id, long chatId, User author, String text) {
-        this.id = id;
-        this.chatId = chatId;
-        this.author = author;
-        this.data = new MessageData(MessageDataType.TEXT, text);
-        this.type = MessageType.CHAT;
-    }
-
-    public Message(String id, long chatId, User author, Instant creationTime, String text) {
-        this.id = id;
-        this.chatId = chatId;
-        this.author = author;
-        this.time = creationTime;
-        this.data = new MessageData(MessageDataType.TEXT, text);
-        this.type = MessageType.CHAT;
     }
 
 }
