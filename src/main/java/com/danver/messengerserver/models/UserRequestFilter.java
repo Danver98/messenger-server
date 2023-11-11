@@ -26,4 +26,9 @@ public class UserRequestFilter {
      * Whether to exclude users who are in chat with chatId from the search
      */
     private Boolean exclude;
+
+    /**
+     * Number of records to fetch
+     */
+    private Long count;
 }

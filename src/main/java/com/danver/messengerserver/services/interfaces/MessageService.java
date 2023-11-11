@@ -10,8 +10,6 @@ import java.util.List;
 public interface MessageService {
 
 
-    List<Message> getMessagesPaged(long chatId, Instant before, Instant after, String cursorMsgId, Integer count);
-
     List<Message> getMessages(MessageRequestDTO dto);
 
     /**

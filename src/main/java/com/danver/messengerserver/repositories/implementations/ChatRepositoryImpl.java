@@ -3,6 +3,7 @@ package com.danver.messengerserver.repositories.implementations;
 import com.danver.messengerserver.models.Chat;
 import com.danver.messengerserver.models.util.Direction;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
+import com.danver.messengerserver.repositories.mappers.ChatListRowMapper;
 import com.danver.messengerserver.repositories.mappers.ChatRowMapper;
 import com.danver.messengerserver.repositories.mappers.UserDTORowMapper;
 import com.danver.messengerserver.utils.Constants;
@@ -14,6 +15,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Types;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -45,10 +47,8 @@ public class ChatRepositoryImpl implements ChatRepository {
         String query = "INSERT INTO Chats (name, avatarUrl, private) VALUES (?, ?, ?) RETURNING id";
         long id = jdbcTemplate.queryForObject(query, Long.class, chat.getName(), chat.getAvatarUrl(), chat.isPrivate());
         chat.setId(id);
-        query = "INSERT Into UsersChats VALUES (?, ?)";
-        List<Object[]> usersChats = chat.getParticipants().stream()
-                .map(user -> new Object[]{user.getId(), chat.getId()}).collect(Collectors.toList());
-        jdbcTemplate.batchUpdate(query, usersChats);
+        // query = "INSERT Into UsersChats VALUES (?, ?)";
+        //jdbcTemplate.batchUpdate(query, usersChats);
         return chat;
     }
 
@@ -148,84 +148,50 @@ public class ChatRepositoryImpl implements ChatRepository {
                     c.id
                 FETCH FIRST :count ROWS ONLY
                 """, compareSign, compareSign, order);
-        return namedParameterJdbcTemplate.query(query, new BeanPropertySqlParameterSource(dto), new ChatRowMapper());
-    }
-
-
-    @Transactional
-    public List<Chat> getChatsWithLastMsg(long userId, Instant threshold, Long chatIdThreshold, int direction, Integer count) {
-        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
-        namedParameters.addValue("userId", userId);
-        namedParameters.addValue("threshold", threshold);
-        namedParameters.addValue("chatIdThreshold", chatIdThreshold);
-        namedParameters.addValue("direction", direction == Direction.FUTURE.ordinal() ? '>' : '<');
-        char compareSign =  direction == Direction.FUTURE.ordinal() ? '>' : '<';
-        String order = direction == Direction.FUTURE.ordinal() ? "ASC" : "DESC";
-        namedParameters.addValue("orderDirection", direction == Direction.FUTURE.ordinal() ? "ASC" : "DESC");
-        namedParameters.addValue("count", count == null ? Integer.parseInt(Constants.CHATS_ONE_PAGE_COUNT) : count);
-        Direction dir = direction == 0 ? Direction.FUTURE : Direction.PAST;
-        ChatPagingDtoProperTime dto = new ChatPagingDtoProperTime(userId,
-                threshold == null ? null : threshold.atOffset(ZoneOffset.UTC),
-                chatIdThreshold, dir, count);
-        String query = String.format("""
-                select
-                    c.id,
-                    c.name,
-                    c.avatarUrl,
-                    c.lastChanged,
-                    c.private
-                FROM
-                    Chats c
-                INNER JOIN
-                    UsersChats uc
-                ON
-                    uc.chatId = c.id
-                WHERE 
-                    uc.userId = :userId
-                AND
-                    CASE
-                        WHEN :time::timestamp with time zone IS NULL
-                            THEN TRUE
-                        ELSE
-                            CASE
-                                    WHEN :chatId IS NULL
-                                        THEN c.lastChanged %c :time::timestamp with time zone
-                                    ELSE
-                                        (c.lastChanged, c.id) %c (:time::timestamp with time zone, :chatId)
-                            END
-                    END
-                ORDER BY
-                    c.lastChanged %s,
-                    c.id
-                FETCH FIRST :count ROWS ONLY
-                """, compareSign, compareSign, order);
-        return namedParameterJdbcTemplate.query(query, new BeanPropertySqlParameterSource(dto), new ChatRowMapper());
+        return namedParameterJdbcTemplate.query(query, new BeanPropertySqlParameterSource(dto), new ChatListRowMapper());
     }
 
     @Override
     @Transactional
     public List<Chat> getChatsWithParticipants(long userId) {
-        String query = "select * FROM Chats INNER JOIN UsersChats ON UsersChats.chatId = Chats.id" +
-                " WHERE UsersChats.userId = ?";
-        List<Chat> chats = jdbcTemplate.query(query, new ChatRowMapper(), userId);
-        query = "select id, name, surname, email, avatarUrl FROM Users INNER JOIN UsersChats ON UsersChats.userId = Users.id " +
-                "WHERE UsersChats.chatId = ?";
-        for (Chat chat : chats) {
-            chat.setParticipants(jdbcTemplate.query(query, new UserDTORowMapper(), chat.getId()));
-        }
-        return chats;
+        return null;
     }
 
     @Override
     @Transactional
     public Chat getChat(long id) {
-        String query = "select * FROM Chats WHERE id = ?";
-        Chat chat = jdbcTemplate.queryForObject(query, new ChatRowMapper(), id);
-        query = "select id, name, surname, email, avatarUrl FROM Users INNER JOIN UsersChats ON UsersChats.userId = Users.id " +
-                "WHERE UsersChats.chatId = ?";
-        if (chat != null)
-            chat.setParticipants(jdbcTemplate.query(query, new UserDTORowMapper(), id));
-        return chat;
+        String query = """
+            with participants as (
+                select
+                    c.id "chatId",
+                    array_agg(distinct uc.userid) "participants"
+                from
+                    Chats c
+                join UsersChats uc
+                    on c.id = :chatId
+                    and c.id = uc.chatId
+                    and c.private is true
+                group by
+                    c.id
+            )
+            select
+                c.*,
+                case c."private"
+                    when true
+                        then pts."participants"
+                    else
+                        null::bigint[]
+                end "participants"
+            FROM
+                Chats c
+            left join participants pts
+                on c."id" = pts."chatId"
+            WHERE
+                id = :chatId
+        """;
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("chatId", id, Types.BIGINT);
+        return namedParameterJdbcTemplate.queryForObject(query, namedParameters, new ChatRowMapper());
     }
 
     @Override
@@ -235,10 +201,10 @@ public class ChatRepositoryImpl implements ChatRepository {
         jdbcTemplate.update(query, chat.getName(), chat.getAvatarUrl(), chat.getId(), chat.isPrivate());
         query = "DELETE FROM UsersChats WHERE chatId = ?";
         jdbcTemplate.update(query, chat.getId());
-        query = "INSERT INTO UsersChats VALUES (?, ?)";
+/*        query = "INSERT INTO UsersChats VALUES (?, ?)";
         List<Object[]> usersChats = chat.getParticipants().stream()
                 .map(user -> new Object[]{user.getId(), chat.getId()}).collect(Collectors.toList());
-        jdbcTemplate.batchUpdate(query, usersChats);
+        jdbcTemplate.batchUpdate(query, usersChats);*/
     }
 
     @Override

@@ -29,11 +29,6 @@ public class MessageServiceImpl implements MessageService {
 
 
     @Override
-    public List<Message> getMessagesPaged(long chatId, Instant before, Instant after, String cursorMsgId, Integer count) {
-        return messageRepository.getMessagesPaged(chatId, before, after, cursorMsgId, count);
-    }
-
-    @Override
     public List<Message> getMessages(MessageRequestDTO dto) {
         return messageRepository.getMessages(dto);
     }

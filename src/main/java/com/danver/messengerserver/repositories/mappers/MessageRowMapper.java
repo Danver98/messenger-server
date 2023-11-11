@@ -25,7 +25,7 @@ public class MessageRowMapper implements RowMapper<Message> {
                         .build()
         );
         OffsetDateTime timestamp = rs.getObject("lastChanged", OffsetDateTime.class);
-        message.setTime(timestamp.toInstant());
+        message.setTime(timestamp == null ? null : timestamp.toInstant());
         // What's if null?
         Short valueType = rs.getObject("value_type", Short.class);
         Short type = rs.getObject("type", Short.class);

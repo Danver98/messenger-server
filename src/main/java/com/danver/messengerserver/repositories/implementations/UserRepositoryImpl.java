@@ -3,6 +3,7 @@ package com.danver.messengerserver.repositories.implementations;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.models.UserRequestDTO;
 import com.danver.messengerserver.models.UserRequestFilter;
+import com.danver.messengerserver.models.util.Direction;
 import com.danver.messengerserver.repositories.interfaces.UserRepository;
 import com.danver.messengerserver.repositories.mappers.UserDTORowMapper;
 import com.danver.messengerserver.repositories.mappers.UserRowMapper;
@@ -99,7 +100,12 @@ public class UserRepositoryImpl implements UserRepository {
         namedParameters.addValue("surname", params.length > 1 ? params[1] : null, Types.VARCHAR);
         namedParameters.addValue("chatId", filter.getChatId(), Types.BIGINT);
         namedParameters.addValue("exclude", filter.getExclude(), Types.BOOLEAN);
-        String query = """
+        namedParameters.addValue("count", filter.getCount(), Types.BIGINT);
+        namedParameters.addValue("id", dto.getId(), Types.BIGINT);
+        namedParameters.addValue("surname", dto.getSurname(), Types.VARCHAR);
+        char compareSign = dto.getDirection() == Direction.FUTURE ? '>' : '<';
+        String order = dto.getDirection() == Direction.FUTURE ? "ASC" : "DESC";
+        String query = String.format("""
             select
                 u.id,
                 u.name,
@@ -109,26 +115,9 @@ public class UserRepositoryImpl implements UserRepository {
                 u.passwordhash
             from
                 Users u
-            where
-                case
-                    when :name is not null
-                        then
-                            (u.name ilike '%' || :name || '%'
-                            or u.surname ilike '%' || :name || '%')
-                    else
-                        true
-                end
-                and
-                case
-                    when :surname is not null
-                        then
-                            (u.name ilike '%' || :surname || '%'
-                             or u.surname ilike '%' || :surname || '%')
-                    else
-                        true
-                end
-            fetch first 50 rows only
-        """;
+
+        """, compareSign, compareSign, order);
+
 /*        + ( filter.getChatId() != null ?
                 """
                     join UsersChats uc

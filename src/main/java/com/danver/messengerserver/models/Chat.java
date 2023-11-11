@@ -24,7 +24,7 @@ public class Chat {
     @Setter
     private boolean isPrivate;
     @Getter
-    private List<User> participants;
+    private List<Long> participants;
     @Getter
     private List<Message> messages;
     @Getter
@@ -54,7 +54,7 @@ public class Chat {
         this.avatarUrl = avatarUrl;
     }
 
-    public void setParticipants(List<User> participants) {
+    public void setParticipants(List<Long> participants) {
 
         this.participants = participants;
         if (this.participants.size() > 2) {

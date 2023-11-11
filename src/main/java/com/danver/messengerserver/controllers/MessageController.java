@@ -53,31 +53,6 @@ public class MessageController {
         return "This is a secret message!";
     }
 
-    @GetMapping("/paged/{chatId}")
-    DeferredResult<ResponseEntity<List<Message>>> getMessagesPaged(@PathVariable long chatId,
-                                                                   @RequestParam(required = false)
-                                                                   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-                                                                   Instant before,
-                                                                   @RequestParam(required = false)
-                                                                   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-                                                                   Instant after,
-                                                                   @RequestParam(required = false)
-                                                                   String cursorMsgId,
-                                                                   @RequestParam(required = false)
-                                                                   Integer count) {
-        // TODO: - dispose of DB call for each check (preferably use Redis);
-        // TODO (optionally): extract this logic to filter/interceptors level
-        // TODO: check access
-//        if (!chatService.userInChat(userId, chatId)) {
-//            throw new AuthorizedAccessException();
-//        }
-
-        DeferredResult<ResponseEntity<List<Message>>> deferredResult = new DeferredResult<>(timeoutValue, timeoutResult);
-        List<Message> messages = messageService.getMessagesPaged(chatId, before, after, cursorMsgId, count);
-        deferredResult.setResult(new ResponseEntity<>(messages, HttpStatus.OK));
-        return deferredResult;
-    }
-
     // TODO: use @Header('sessionId') or @SendToUser (less preferable) for security
     // Maybe we should split methods to send data either to private chat or to group chat (look https://www.baeldung.com/spring-websockets-send-message-to-user)
 
@@ -101,14 +76,21 @@ public class MessageController {
     }
 
     @MessageMapping("/chats/private/send-message")
-    ResponseEntity<?> sendMessagePrivate(@Payload MessageDTO dto) {
+    ResponseEntity<?> sendMessagePrivate(@Payload String messageDTO) {
         // TODO: check authority
         try {
+            MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
             messageService.createMessage(dto.getMessage());
-            messagingTemplate.convertAndSendToUser(
+/*            messagingTemplate.convertAndSendToUser(
                     Long.toString(dto.getMessage().getReceiverId()),
                     Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages",
-                    dto.getMessage());
+                    dto.getMessage());*/
+            String destination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
+            messagingTemplate.convertAndSendToUser(
+                    Long.toString(dto.getMessage().getReceiverId()),
+                    destination,
+                    dto.getMessage()
+            );
             return new ResponseEntity<>(dto.getMessage(), HttpStatus.OK);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

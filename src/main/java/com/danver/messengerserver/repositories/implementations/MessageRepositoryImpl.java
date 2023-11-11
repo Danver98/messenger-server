@@ -11,11 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -39,54 +37,6 @@ public class MessageRepositoryImpl implements MessageRepository {
     @Autowired
     public MessageRepositoryImpl(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-    }
-
-    @Override
-    public List<Message> getMessagesPaged(long chatId, Instant before, Instant after, String cursorMsgId, Integer count) {
-        logger.info("Getting messages for user with id: " + " for chat with id" + chatId + "using paging");
-        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
-        namedParameters.addValue("chatId", chatId);
-        namedParameters.addValue("before", before);
-        namedParameters.addValue("after", after);
-        namedParameters.addValue("cursorMsgId", cursorMsgId);
-        namedParameters.addValue("count", count);
-
-        String query = """
-                SELECT
-                    Messages.id,
-                    authorId,
-                    \"name\",
-                    surname,
-                    avatarUrl,
-                    chatId,
-                    type,
-                    value,
-                    value_type,
-                    lastChanged
-                FROM
-                    Messages
-                INNER JOIN Users
-                    ON Messages.authorId = Users.id
-                WHERE
-                    chatId = :chatId
-                    AND CASE :before
-                            WHEN IS NULL THEN true
-                            ELSE (lastChanged, Message.id) < (:before, :cursorMsgId)
-                        END
-                    AND CASE :after
-                            WHEN IS NULL THEN true
-                            ELSE (lastChanged, Message.id) > (:after, :cursorMsgId)
-                        END         
-                ORDER BY
-                    lastChanged DESC
-                """;
-        if (count != null) {
-            query += """
-                        FETCH FIRST :count ROWS ONLY
-                    """;
-        }
-
-        return this.jdbcTemplate.query(query, new MessageRowMapper(), namedParameters);
     }
 
     @Override
@@ -126,7 +76,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                                     ELSE
                                         (lastChanged, Messages.id) %c (:time::timestamp with time zone, :messageId::uuid)
                                 END
-                        END    
+                        END
                 ORDER BY
                     lastChanged %s
                 FETCH FIRST :count ROWS ONLY
