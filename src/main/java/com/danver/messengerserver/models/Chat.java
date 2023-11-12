@@ -21,7 +21,10 @@ public class Chat {
     @JsonAlias("time")
     private Instant lastChanged;
 
+    @Getter
     @Setter
+    @JsonAlias("private")
+    @JsonProperty("private")
     private boolean isPrivate;
     @Getter
     private List<Long> participants;
@@ -62,20 +65,12 @@ public class Chat {
 
         this.participants = participants;
         if (this.participants.size() > 2) {
-            this.setPrivate(true);
+            this.setPrivate(false);
         }
     }
 
     public void setLastChanged(Instant lastChanged) {
         this.lastChanged = lastChanged;
-    }
-
-    public boolean isPrivate() {
-
-        if (this.participants != null && this.participants.size() > 2) {
-            return true;
-        }
-        return isPrivate;
     }
 
     public void setLastMessage(Message lastMessage) {

@@ -99,7 +99,7 @@ public class MessageController {
             dto.setMessage(created);
             String destination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
             for (long user: participants) {
-                if (chat != null && user == message.getAuthor().getId()) {
+                if (chat != null && chat.isPrivate() && user == message.getAuthor().getId()) {
                     // Exclude message author from receivers list, if private chat given
                     continue;
                 }

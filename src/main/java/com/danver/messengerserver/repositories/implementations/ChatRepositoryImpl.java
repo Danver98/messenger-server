@@ -49,6 +49,8 @@ public class ChatRepositoryImpl implements ChatRepository {
             Chats (name, avatarUrl, private, draft)
         values
             (:name, :avatar, :private, true)
+        on conflict
+            do nothing
         returning id
         """;
         MapSqlParameterSource params = new MapSqlParameterSource();
@@ -154,6 +156,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                     c.avatarUrl,
                     c.lastChanged,
                     c.private,
+                    c.draft,
                     -- last message in chat
                     last_msg.id "lastMsg.id",
                     last_msg.chatId "lastMsg.chatId",

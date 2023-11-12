@@ -20,6 +20,7 @@ public class ChatListRowMapper implements RowMapper<Chat> {
         chat.setLastChanged(timestamp.toInstant());
 
         chat.setPrivate(rs.getBoolean("private"));
+        chat.setDraft(rs.getBoolean("draft"));
 
         Message lastMessage = Message.builder()
                 .id(rs.getString("lastMsg.id"))
