@@ -29,17 +29,21 @@ public class Chat {
     private List<Message> messages;
     @Getter
     private Message lastMessage;
+    @Getter
+    @Setter
+    private boolean draft;
 
     public Chat() {
 
     }
 
-    public Chat(long id, String name, String avatarUrl, Instant lastChanged, boolean isPrivate) {
+    public Chat(long id, String name, String avatarUrl, Instant lastChanged, boolean isPrivate, boolean draft) {
         this.id = id;
         this.name = name;
         this.avatarUrl = avatarUrl;
         this.lastChanged = lastChanged;
         this.isPrivate = isPrivate;
+        this.draft = draft;
     }
 
     public void setId(long id) {

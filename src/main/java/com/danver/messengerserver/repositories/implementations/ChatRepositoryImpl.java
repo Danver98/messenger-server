@@ -46,9 +46,9 @@ public class ChatRepositoryImpl implements ChatRepository {
     public Chat createChat(Chat chat) {
         String query = """
         insert into
-            Chats (name, avatarUrl, private)
+            Chats (name, avatarUrl, private, draft)
         values
-            (:name, :avatar, :private)
+            (:name, :avatar, :private, true)
         returning id
         """;
         MapSqlParameterSource params = new MapSqlParameterSource();
@@ -72,7 +72,7 @@ public class ChatRepositoryImpl implements ChatRepository {
         """;
             namedParameterJdbcTemplate.update(query, params);
         }
-        return chat;
+        return this.getChat(id);
     }
 
     @Override
@@ -339,7 +339,7 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     public Chat getOrCreate(Chat chat) {
         Chat existing = this.getChat(chat.getId());
-        if (existing != null) return  existing;
+        if (existing != null) return existing;
         return this.createChat(chat);
     }
 

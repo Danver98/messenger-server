@@ -26,6 +26,7 @@ public class ChatRowMapper implements RowMapper<Chat> {
         chat.setLastChanged(timestamp.toInstant());
 
         chat.setPrivate(isPrivate);
+        chat.setDraft(rs.getBoolean("draft"));
         Array array = rs.getArray("participants");
         if (array != null) {
             Long [] lst = (Long[]) array.getArray();

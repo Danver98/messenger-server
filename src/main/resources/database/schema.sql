@@ -35,11 +35,11 @@ CREATE OR REPLACE TRIGGER add_user_to_all_users_chat_trg AFTER INSERT ON Users
 CREATE TABLE IF NOT EXISTS Chats
 (
     id        bigserial PRIMARY KEY,
-    name      varchar(100) NOT NULL,
+    name      varchar(100),
     avatarUrl varchar(200),
     lastChanged timestamp with time zone, -- supposed to be the time when last message was sent
     private boolean,
-    draft boolean
+    draft boolean default true
 );
 -- Should we create index on LastChanged if it's changed often?
 --Create type
@@ -87,8 +87,8 @@ BEGIN
         UPDATE
             Chats
         SET
-            lastChanged = OLD.lastChanged,
-            draft = OLD.draft
+            lastChanged = OLD.lastChanged
+            --draft = OLD.draft
         WHERE
             id = NEW.chatId;
         RETURN OLD;

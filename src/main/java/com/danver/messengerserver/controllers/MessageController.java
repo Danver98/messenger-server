@@ -89,14 +89,20 @@ public class MessageController {
                 if (chatUsers == null) {
                     return null;
                 }
-                participants = chatUsers.stream().map(User::getId).toArray(Long[]::new);
+                participants = chatUsers.stream().map(User::getId)
+                        .toArray(Long[]::new);
             } else {
-                participants = chat.getParticipants().toArray(Long[]::new);
+                participants = chat.getParticipants()
+                        .toArray(Long[]::new);
             }
             Message created = messageService.createMessage(dto.getMessage());
             dto.setMessage(created);
             String destination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
             for (long user: participants) {
+                if (chat != null && user == message.getAuthor().getId()) {
+                    // Exclude message author from receivers list, if private chat given
+                    continue;
+                }
                 messagingTemplate.convertAndSendToUser(
                         Long.toString(user),
                         destination,
