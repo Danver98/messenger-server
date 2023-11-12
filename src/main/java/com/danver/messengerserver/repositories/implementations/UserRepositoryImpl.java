@@ -115,7 +115,40 @@ public class UserRepositoryImpl implements UserRepository {
                 u.passwordhash
             from
                 Users u
-
+            where
+                case
+                    when :id is null
+                        then true
+                    else
+                        case
+                            when :surname is null
+                                then u.id %c :id
+                            else
+                                (u.id, u.surname) %c (:id, :surname)
+                        end
+                end
+                -- search
+                and
+                case
+                    when :name is not null
+                        then
+                            (u.name ilike '%%' || :name || '%%'
+                            or u.surname ilike '%%' || :name || '%%')
+                    else
+                        true
+                end
+                and
+                case
+                    when :surname is not null
+                        then
+                            (u.name ilike '%%' || :surname || '%%'
+                             or u.surname ilike '%%' || :surname || '%%')
+                    else
+                        true
+                end
+            order by
+                surname %s
+            fetch first :count rows only
         """, compareSign, compareSign, order);
 
 /*        + ( filter.getChatId() != null ?

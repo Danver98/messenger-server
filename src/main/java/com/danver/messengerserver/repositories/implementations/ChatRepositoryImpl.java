@@ -5,9 +5,9 @@ import com.danver.messengerserver.models.util.Direction;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.repositories.mappers.ChatListRowMapper;
 import com.danver.messengerserver.repositories.mappers.ChatRowMapper;
-import com.danver.messengerserver.repositories.mappers.UserDTORowMapper;
 import com.danver.messengerserver.utils.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -20,7 +20,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Repository
 public class ChatRepositoryImpl implements ChatRepository {
@@ -44,11 +44,34 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public Chat createChat(Chat chat) {
-        String query = "INSERT INTO Chats (name, avatarUrl, private) VALUES (?, ?, ?) RETURNING id";
-        long id = jdbcTemplate.queryForObject(query, Long.class, chat.getName(), chat.getAvatarUrl(), chat.isPrivate());
+        String query = """
+        insert into
+            Chats (name, avatarUrl, private)
+        values
+            (:name, :avatar, :private)
+        returning id
+        """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("name", chat.getName(), Types.VARCHAR);
+        params.addValue("avatar", chat.getAvatarUrl(), Types.VARCHAR);
+        params.addValue("private", chat.isPrivate(), Types.BOOLEAN);
+        Long id = namedParameterJdbcTemplate.queryForObject(query, params, Long.class);
+        if (id == null) {
+            return null;
+        }
         chat.setId(id);
-        // query = "INSERT Into UsersChats VALUES (?, ?)";
-        //jdbcTemplate.batchUpdate(query, usersChats);
+        if (chat.getParticipants() != null) {
+            Long [] userIds = chat.getParticipants().toArray(new Long[0]);
+            params.addValue("chatId", id);
+            params.addValue("users", userIds, Types.ARRAY);
+            query= """
+            insert into
+                UsersChats (chatId, userId)
+            select
+                :chatId, unnest(:users)
+        """;
+            namedParameterJdbcTemplate.update(query, params);
+        }
         return chat;
     }
 
@@ -96,10 +119,38 @@ public class ChatRepositoryImpl implements ChatRepository {
                         and m.lastChanged = max_data.lastChanged
                     join Users author
                         on m.authorId = author.id
+                ), private_chats as (
+                    select
+                        array_agg(c.id) "ids"
+                    from
+                        Chats c
+                    join
+                        UsersChats uc
+                    on
+                        uc.chatId = c.id
+                    WHERE
+                        c.private is true
+                        and uc.userId = :userId
+                ), private_chats_names as (
+                    select
+                        uc.chatId "id",
+                        u.name || ' ' || u.surname "name"
+                    from
+                        UsersChats uc
+                    join Users u
+                        on uc.userId = u.id
+                        and uc.userId is distinct from :userId
+                    where
+                        uc.chatId = any((select ids from private_chats)::bigint[])
                 )
                 select
                     c.id,
-                    c.name,
+                    case
+                        when c.private is true
+                            then pcn.name
+                        else
+                            c.name
+                    end "name",
                     c.avatarUrl,
                     c.lastChanged,
                     c.private,
@@ -120,6 +171,9 @@ public class ChatRepositoryImpl implements ChatRepository {
                     UsersChats uc
                 on
                     uc.chatId = c.id
+                left join private_chats_names pcn
+                    on c.id = pcn.id
+                    and c.private is true
                 LEFT JOIN LATERAL (
                     select
                         *
@@ -131,6 +185,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                 ON TRUE
                 WHERE
                     uc.userId = :userId
+                    and c.draft is not true
                 AND
                     CASE
                         WHEN :time::timestamp with time zone IS NULL
@@ -164,13 +219,16 @@ public class ChatRepositoryImpl implements ChatRepository {
             with participants as (
                 select
                     c.id "chatId",
-                    array_agg(distinct uc.userid) "participants"
+                    array_agg(distinct uc.userid) "participants",
+                    array_agg(u.name || ' ' || u.surname) "user_names"
                 from
                     Chats c
                 join UsersChats uc
                     on c.id = :chatId
                     and c.id = uc.chatId
                     and c.private is true
+                join Users u
+                    on uc.userId = u.id
                 group by
                     c.id
             )
@@ -181,7 +239,8 @@ public class ChatRepositoryImpl implements ChatRepository {
                         then pts."participants"
                     else
                         null::bigint[]
-                end "participants"
+                end "participants",
+                array_to_string(pts."user_names", '|') "user_names"
             FROM
                 Chats c
             left join participants pts
@@ -191,7 +250,11 @@ public class ChatRepositoryImpl implements ChatRepository {
         """;
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("chatId", id, Types.BIGINT);
-        return namedParameterJdbcTemplate.queryForObject(query, namedParameters, new ChatRowMapper());
+        try {
+            return namedParameterJdbcTemplate.queryForObject(query, namedParameters, new ChatRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     @Override
@@ -229,6 +292,55 @@ public class ChatRepositoryImpl implements ChatRepository {
             
         """;
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject(query, Boolean.class, userId, chatId));
+    }
+
+    @Override
+    public Chat exists(Long[] userIds) {
+        if (userIds.length < 2) return null;
+        if (Objects.equals(userIds[0], userIds[1])) return null;
+        String query = """
+            with common_chats as (
+                select
+                    chatId
+                from
+                    UsersChats
+                where
+                    userId is not distinct from :first
+                
+                intersect
+                
+                select
+                    chatId
+                from
+                    UsersChats
+                where
+                    userId is not distinct from :second
+            )
+            select
+                1
+            from
+                Chats c
+            where
+                c.private is true
+                and c.id = any ((select array_agg(chatId) from common_chats )::bigint[])
+            limit
+                1
+        """;
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("first", userIds[0], Types.BIGINT);
+        namedParameters.addValue("second", userIds[1], Types.BIGINT);
+        Long chat = namedParameterJdbcTemplate.queryForObject(query, namedParameters, Long.class);
+        if (chat != null) {
+            return this.getChat(chat);
+        }
+        return null;
+    }
+
+    @Override
+    public Chat getOrCreate(Chat chat) {
+        Chat existing = this.getChat(chat.getId());
+        if (existing != null) return  existing;
+        return this.createChat(chat);
     }
 
     @Override

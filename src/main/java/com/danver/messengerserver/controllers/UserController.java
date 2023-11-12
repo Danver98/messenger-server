@@ -30,7 +30,8 @@ public class UserController {
     @PostMapping("/")
     ResponseEntity<List<User>> list(@RequestBody UserRequestDTO dto) {
         List<User> found = this.userService.list(dto);
-        return new ResponseEntity<>(found, !found.isEmpty() ? HttpStatus.OK : HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(found, HttpStatus.OK);
+        //return new ResponseEntity<>(found, !found.isEmpty() ? HttpStatus.OK : HttpStatus.NO_CONTENT);
     }
 
     @PostMapping

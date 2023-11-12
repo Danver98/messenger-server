@@ -30,5 +30,17 @@ public interface ChatRepository {
      */
     boolean userInChat(long userId, long chatId);
 
+    /**
+     * Check whether chat with given users exists
+     * @return existing chat or null
+     */
+    Chat exists(Long[] userIds);
+
+    /**
+     * Check whether chat with given params exists (id, participants ids)
+     * @return newly created chat or existing one
+     */
+    Chat getOrCreate(Chat chat);
+
     void addParticipants(long chatId, long [] users);
 }

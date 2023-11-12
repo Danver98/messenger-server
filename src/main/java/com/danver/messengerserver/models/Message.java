@@ -25,11 +25,12 @@ public class Message {
     private MessageType type;
 
     public enum MessageType {
+        CREATION(1),
+        INVITATION(2),
         @JsonEnumDefaultValue
-        CHAT(1),
-        JOIN(2),
-        INVITATION(3),
-        LEAVE(4);
+        CHAT(3),
+        JOIN(4),
+        LEAVE(5);
 
         private final byte value;
         private static final Map<Byte, MessageType> map = new HashMap<>();

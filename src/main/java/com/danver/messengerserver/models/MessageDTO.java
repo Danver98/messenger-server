@@ -11,7 +11,6 @@ public class MessageDTO {
 
     private Message message;
     private boolean chatIsPrivate;
-    private Long receiverId;
-    private String testText;
-    private String testAuthor;
+    private String chatName;
+    private Chat chat;
 }

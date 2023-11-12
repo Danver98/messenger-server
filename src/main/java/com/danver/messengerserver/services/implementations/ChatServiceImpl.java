@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ChatServiceImpl implements ChatService {
@@ -22,8 +23,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public Chat createChat(Chat chat) {
-        chatRepository.createChat(chat);
-        return chat;
+        return chatRepository.getOrCreate(chat);
     }
 
     @Override
@@ -57,6 +57,11 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public boolean userInChat(long userId, long chatId) {
         return chatRepository.userInChat(userId, chatId);
+    }
+
+    @Override
+    public Chat exists(Long[] userIds) {
+        return chatRepository.exists(userIds);
     }
 
     @Override

@@ -22,5 +22,5 @@ public class UserRequestDTO {
     private String surname;
     private Long id;
     @Builder.Default
-    private Direction direction = Direction.PAST;
+    private Direction direction = Direction.FUTURE;
 }

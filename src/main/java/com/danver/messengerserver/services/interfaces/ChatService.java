@@ -12,7 +12,7 @@ public interface ChatService {
      /**
       *
       * @param chat - chat object
-      * @return newly created chat null if error occurred
+      * @return newly created chat, null if error occurred
       */
      Chat createChat(Chat chat);
 
@@ -31,6 +31,12 @@ public interface ChatService {
       * @return whether user is present in given chat
       */
      boolean userInChat(long userId, long chatId);
+
+     /**
+      * Check whether chat with given users exists
+      * @return existing chat or null
+      */
+     Chat exists(Long[] userIds);
 
      void addParticipants(long chatId, long[] users);
 }

@@ -1,9 +1,7 @@
 package com.danver.messengerserver.controllers;
 
 import com.danver.messengerserver.MessengerServerApplication;
-import com.danver.messengerserver.models.Message;
-import com.danver.messengerserver.models.MessageDTO;
-import com.danver.messengerserver.models.MessageRequestDTO;
+import com.danver.messengerserver.models.*;
 import com.danver.messengerserver.services.interfaces.ChatService;
 import com.danver.messengerserver.services.interfaces.MessageService;
 import com.danver.messengerserver.utils.Constants;
@@ -75,23 +73,56 @@ public class MessageController {
         return null;
     }
 
+    @MessageMapping("/chats/create-invite")
+    ResponseEntity<?> createChat(@Payload String messageDTO) {
+        // TODO: check authority
+        try {
+            MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
+            Message message = dto.getMessage();
+            if (message.getType() != Message.MessageType.CREATION) {
+                return null;
+            }
+            Long [] participants;
+            Chat chat = dto.getChat();
+            if (chat == null) {
+                List<User> chatUsers = chatService.getParticipants(message.getChatId());
+                if (chatUsers == null) {
+                    return null;
+                }
+                participants = chatUsers.stream().map(User::getId).toArray(Long[]::new);
+            } else {
+                participants = chat.getParticipants().toArray(Long[]::new);
+            }
+            Message created = messageService.createMessage(dto.getMessage());
+            dto.setMessage(created);
+            String destination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
+            for (long user: participants) {
+                messagingTemplate.convertAndSendToUser(
+                        Long.toString(user),
+                        destination,
+                        dto
+                );
+            }
+            return new ResponseEntity<>(dto, HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @MessageMapping("/chats/private/send-message")
     ResponseEntity<?> sendMessagePrivate(@Payload String messageDTO) {
         // TODO: check authority
         try {
             MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
-            messageService.createMessage(dto.getMessage());
-/*            messagingTemplate.convertAndSendToUser(
-                    Long.toString(dto.getMessage().getReceiverId()),
-                    Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages",
-                    dto.getMessage());*/
+            Message message = messageService.createMessage(dto.getMessage());
+            dto.setMessage(message);
             String destination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
             messagingTemplate.convertAndSendToUser(
                     Long.toString(dto.getMessage().getReceiverId()),
                     destination,
-                    dto.getMessage()
+                    dto
             );
-            return new ResponseEntity<>(dto.getMessage(), HttpStatus.OK);
+            return new ResponseEntity<>(dto, HttpStatus.OK);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -104,12 +135,13 @@ public class MessageController {
         // TODO: append auxiliary info (ex. author's avatar url, name, surname) if absent
         try {
             MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
-            messageService.createMessage(dto.getMessage());
+            Message message = messageService.createMessage(dto.getMessage());
+            dto.setMessage(message);
             messagingTemplate.convertAndSend(
                     Constants.MESSAGE_BROKER_TOPIC_PREFIX + "/chats/" + dto.getMessage().getChatId() + "/messages",
-                    dto.getMessage()
+                    dto
                     );
-            return new ResponseEntity<>(dto.getMessage(), HttpStatus.OK);
+            return new ResponseEntity<>(dto, HttpStatus.OK);
         } catch (JsonProcessingException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -121,6 +153,6 @@ public class MessageController {
 
     @Scheduled(fixedRate = 60000)
     void clearActiveChats() {
-        logger.info("ClearActiveChats task running...");
+        logger.info("ClearActiveChats task running: " + Thread.currentThread().getName());
     }
 }

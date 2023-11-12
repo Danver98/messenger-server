@@ -37,8 +37,9 @@ CREATE TABLE IF NOT EXISTS Chats
     id        bigserial PRIMARY KEY,
     name      varchar(100) NOT NULL,
     avatarUrl varchar(200),
-    ------------------------ Columns to have been added after initializing basic schema
-    lastChanged timestamp with time zone -- supposed to be the time when last message was sent
+    lastChanged timestamp with time zone, -- supposed to be the time when last message was sent
+    private boolean,
+    draft boolean
 );
 -- Should we create index on LastChanged if it's changed often?
 --Create type
@@ -74,14 +75,22 @@ CREATE TABLE IF NOT EXISTS Messages
 CREATE OR REPLACE FUNCTION update_chat_last_changed_column() RETURNS TRIGGER AS '
 BEGIN
     IF (TG_OP = ''INSERT'') OR (TG_OP = ''UPDATE'') THEN
-        UPDATE Chats
-        SET lastChanged = NEW.lastChanged
-        WHERE id = NEW.chatId;
+        UPDATE
+            Chats
+        SET
+            lastChanged = NEW.lastChanged,
+            draft = null
+        WHERE
+            id = NEW.chatId;
         RETURN NEW;
     ELSE IF (TG_OP = ''DELETE'') THEN
-        UPDATE Chats
-        SET lastChanged = OLD.lastChanged
-        WHERE id = NEW.chatId;
+        UPDATE
+            Chats
+        SET
+            lastChanged = OLD.lastChanged,
+            draft = OLD.draft
+        WHERE
+            id = NEW.chatId;
         RETURN OLD;
     end if;
     END IF;

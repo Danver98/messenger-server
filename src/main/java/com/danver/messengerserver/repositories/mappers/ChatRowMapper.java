@@ -15,12 +15,17 @@ public class ChatRowMapper implements RowMapper<Chat> {
     public Chat mapRow(ResultSet rs, int rowNum) throws SQLException {
         Chat chat = new Chat();
         chat.setId(rs.getLong("id"));
-        chat.setName(rs.getString("name"));
+        boolean isPrivate = rs.getBoolean("private");
+        if (isPrivate) {
+            chat.setName(rs.getString("user_names"));
+        } else {
+            chat.setName(rs.getString("name"));
+        }
         chat.setAvatarUrl(rs.getString("avatarUrl"));
         OffsetDateTime timestamp = rs.getObject("lastChanged", OffsetDateTime.class);
         chat.setLastChanged(timestamp.toInstant());
 
-        chat.setPrivate(rs.getBoolean("private"));
+        chat.setPrivate(isPrivate);
         Array array = rs.getArray("participants");
         if (array != null) {
             Long [] lst = (Long[]) array.getArray();
