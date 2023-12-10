@@ -1,0 +1,90 @@
+application:
+    authentication:
+        enabled: false
+
+# JWT
+jwt:
+    exp-in-millis: 3600000
+    iss: danver-messenger-service
+    secret: LYkQCrGSh@x&M*RAAdAg.MPt2r2PCJ$56bLf}RAX
+    sign-alg: HS256
+
+# Server
+server:
+    compression:
+        enabled: true
+        mime-types: application/json,application/xml,text/html,text/xml,text/plain,multipart/form-data,application/octet-stream
+    http:
+        port: 8080
+    http2:
+        enabled: true
+    port: 8443
+    servlet:
+        context-path: /messenger/api/v1
+    ssl:
+        enabled: true
+        key-alias: messenger-service
+        key-store: classpath:keystore/messenger-service.p12
+        key-store-password: messenger-service
+        key-store-type: PKCS12
+
+# Spring
+
+spring:
+    servlet:
+        multipart:
+            max-request-size: 50MB
+            max-file-size: 30MB
+    cache:
+        type: redis
+    data:
+        redis:
+            host: localhost
+            port: 6379
+    datasource:
+        driver-class-name: org.postgresql.Driver
+        initialize: true
+        password: flvbhfk
+        url: jdbc:postgresql://localhost:5432/Messenger
+        username: postgres
+    jpa:
+        show-sql: true
+    sql:
+        init:
+            mode: always
+            schema-locations: classpath*:database/schema.sql
+
+# Filebase storage service
+filebase:
+    access-key: aaa
+    api:
+        endpoint: https://s3.filebase.com
+    bucket:
+        default:
+            name: aaa
+    secret-key: aaa
+    root:
+        folder:
+            path: C:/Users/Danver/Projects/Messenger/storage/
+
+# Certificate
+trust:
+    store: classpath:keystore/messenger-service.p12
+    store.password: messenger-service
+
+# Yandex CLoud
+yandex:
+    cloud:
+        object-storage:
+            account:
+                access:
+                    key:
+                        id: YCAJEEieFyvCfCbvr6uotiKbB
+                secret:
+                    key: YCPcYcBE8_OYMouCDjRrQAO2S5k824JPrzFuseSu
+            endpoint: https://storage.yandexcloud.net
+            bucket: danver-messenger-service-storage
+    disk:
+        service:
+            access-token: y0_AgAAAAATPNeCAArssAAAAADzlcr_axB4ifd_Rr-lBh1U4dvRDNt6xo4
+            refresh-token: aaa

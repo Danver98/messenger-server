@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS Users
     email        varchar(50)  NOT NULL UNIQUE,
     salt         bytea,
     passwordHash varchar(128) NOT NULL,
-    avatarUrl    varchar(200)
+    avatarUrl    varchar(300)
 );
 
 CREATE OR REPLACE FUNCTION all_users_chat_id() RETURNS BIGINT AS '

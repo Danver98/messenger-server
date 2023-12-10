@@ -67,16 +67,24 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void updateUser(User user) {
-        String query = "UPDATE Users SET name = ?, surname = ?, email = ?, $PASSWORD " +
-                "avatarUrl = ? WHERE id = ?";
-        String withPassword = "salt = ?, passwordHash = ?,";
-        if (user.getSalt() == null || user.getPassword() == null) {
-            query = query.replace("$PASSWORD", "");
-        } else {
-            query = query.replace("$PASSWORD", withPassword);
-        }
-        jdbcTemplate.update(query, user.getName(), user.getSurname(), user.getEmail(), user.getSalt(),
-                user.getPassword(), user.getAvatarUrl(), user.getId());
+        String query = """
+               UPDATE
+                    Users
+                SET
+                    name = :name,
+                    surname = :surname,
+                    email = :email,
+                    avatarUrl = :avatarUrl
+               WHERE
+                    id = :id
+        """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("name", user.getName());
+        params.addValue("surname", user.getSurname());
+        params.addValue("email", user.getEmail());
+        params.addValue("avatarUrl", user.getAvatarUrl());
+        params.addValue("id", user.getId());
+        namedParameterJdbcTemplate.update(query, params);
     }
 
     @Override

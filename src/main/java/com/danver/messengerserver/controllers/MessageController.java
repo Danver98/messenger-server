@@ -1,29 +1,32 @@
 package com.danver.messengerserver.controllers;
 
 import com.danver.messengerserver.MessengerServerApplication;
+import com.danver.messengerserver.exceptions.StorageException;
 import com.danver.messengerserver.models.*;
 import com.danver.messengerserver.services.interfaces.ChatService;
 import com.danver.messengerserver.services.interfaces.MessageService;
+import com.danver.messengerserver.services.interfaces.StorageService;
 import com.danver.messengerserver.utils.Constants;
+import com.danver.messengerserver.utils.FileStorageOptions;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.time.Instant;
+import java.io.File;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping(path = "/messages")
@@ -39,7 +42,8 @@ public class MessageController {
     private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
 
     @Autowired
-    public MessageController(MessageService messageService, ChatService chatService, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
+    public MessageController(MessageService messageService, ChatService chatService,
+                             SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
         this.messageService = messageService;
         this.chatService = chatService;
         this.messagingTemplate = messagingTemplate;
@@ -72,6 +76,7 @@ public class MessageController {
         }
         return null;
     }
+
 
     @MessageMapping("/chats/create-invite")
     ResponseEntity<?> createChat(@Payload String messageDTO) {
@@ -156,6 +161,7 @@ public class MessageController {
     @MessageMapping("/chat/add-user")
     public void addUser(@Payload MessageDTO messageDTO) {
     }
+
 
     @Scheduled(fixedRate = 60000)
     void clearActiveChats() {
