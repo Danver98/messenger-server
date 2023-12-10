@@ -1,6 +1,8 @@
 package com.danver.messengerserver.models;
 
 import java.util.Collection;
+import java.util.Set;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
@@ -24,6 +26,7 @@ public class User implements UserDetails {
     @JsonProperty("avatar")
     @JsonAlias("avatar")
     private String avatarUrl;
+    private Set<Role> roles;
     //private List<Chat> chats;
 
     public enum UserRoles {
@@ -44,7 +47,7 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return null;
+        return roles;
     }
 
     @Override

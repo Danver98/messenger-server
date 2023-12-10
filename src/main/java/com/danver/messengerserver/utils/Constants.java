@@ -1,7 +1,7 @@
 package com.danver.messengerserver.utils;
 
 public class Constants {
-    public static final String USER_JWT_EMAIL_KEY = "email";
+    public static final String USER_JWT_LOGIN_KEY = "login";
     public static final String CHATS_ONE_PAGE_COUNT = "50";
     public static final String MESSAGE_BROKER_DESTINATION_PREFIX = "/ws";
 

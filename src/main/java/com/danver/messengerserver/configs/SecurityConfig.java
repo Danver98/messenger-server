@@ -31,12 +31,10 @@ public class SecurityConfig {
 
     private final String[] urlWhiteList = {
             "/",
-            "/authenticate",
-            "/login",
-            "/config/**",
-            "/chats/**", // TODO: remove
-            "/messages/**", // TODO: remove
-            "/users/**" // TODO: remove
+            "/ws",
+            "/ws/**",
+            "/auth/**",
+            "/config/**"
     };
     @Autowired
     public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
@@ -47,7 +45,7 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-//
+
     @Bean
     public AuthenticationManager authenticationManager(
             final AuthenticationConfiguration authenticationConfiguration) throws Exception {
@@ -77,8 +75,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authorize) -> authorize
                         .requestMatchers(this.urlWhiteList).permitAll()
                         .anyRequest()
-                                .permitAll()
-                        //.authenticated()
+                        .authenticated()
                 )
                 .headers( (headers) -> {
                 })

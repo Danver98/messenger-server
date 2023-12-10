@@ -1,6 +1,6 @@
 application:
     authentication:
-        enabled: false
+        enabled: true
 
 # JWT
 jwt:

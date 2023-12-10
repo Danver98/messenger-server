@@ -36,7 +36,7 @@ public class JwtUtil {
 
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put(Constants.USER_JWT_EMAIL_KEY, user.getEmail());
+        claims.put(Constants.USER_JWT_LOGIN_KEY, user.getEmail());
         String subject = Long.toString(user.getId());
         return Jwts.builder()
                 .setClaims(claims)
@@ -68,5 +68,12 @@ public class JwtUtil {
             return false;
             // TODO: or generate exception?
         }
+    }
+
+    public Claims getClaims(String token) {
+        return Jwts.parser()
+                .setSigningKeyResolver(signingKeyResolver)
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

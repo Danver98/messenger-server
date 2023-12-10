@@ -10,6 +10,7 @@ import com.danver.messengerserver.utils.Constants;
 import com.danver.messengerserver.utils.FileStorageOptions;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.tomcat.util.net.openssl.ciphers.Authentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,10 +22,13 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.security.Principal;
 import java.util.List;
 import java.util.Objects;
 
@@ -51,7 +55,9 @@ public class MessageController {
     }
 
     @GetMapping("/secret")
-    String getSecret() {
+    String getSecret(Authentication authentication,
+                     Principal principal,
+                    @AuthenticationPrincipal UserDetails userDetails) {
         return "This is a secret message!";
     }
 
