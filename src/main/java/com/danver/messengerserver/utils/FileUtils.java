@@ -70,4 +70,10 @@ public class FileUtils {
         }
         return false;
     }
+
+    public static boolean isValid(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        return name != null && !name.isEmpty() &&
+                file.getContentType() != null;
+    }
 }

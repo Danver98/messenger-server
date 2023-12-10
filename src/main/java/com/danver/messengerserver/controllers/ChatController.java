@@ -105,7 +105,8 @@ public class ChatController {
     ResponseEntity<?> createAttachment(@RequestParam MultipartFile file,
                                        @RequestParam Long userId,
                                        @RequestParam Long chatId) {
-        if (FileUtils.isImage(file) || FileUtils.isAudio(file) || FileUtils.isVideo(file)) {
+        if (FileUtils.isImage(file) || FileUtils.isAudio(file) || FileUtils.isVideo(file) ||
+            FileUtils.isValid(file)) {
             try {
                 String path = "chats/" + chatId + "/attachments";
                 FileStorageOptions options = FileStorageOptions
