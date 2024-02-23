@@ -1,6 +1,7 @@
 package com.danver.messengerserver.filters;
 
 import com.danver.messengerserver.auth.JwtUtil;
+import com.danver.messengerserver.services.interfaces.UserService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,20 +9,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 
 /**
  * This filter should only be applicable after authentication/login process's completed
@@ -31,12 +27,12 @@ import java.util.ArrayList;
 public class JwtTokenFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final Environment env;
+    private final UserService userService;
 
     @Autowired
-    public JwtTokenFilter(JwtUtil jwtUtil, Environment env) {
+    public JwtTokenFilter(JwtUtil jwtUtil, UserService userService) {
         this.jwtUtil = jwtUtil;
-        this.env = env;
+        this.userService = userService;
     }
 
     @Override
@@ -52,13 +48,14 @@ public class JwtTokenFilter extends OncePerRequestFilter {
             return;
         }
         Claims claims = jwtUtil.getClaims(token);
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
         // TODO: use Redis or Some in-memory storage to get full info about user
         //  (substitution for DB call UserDetailsService.loadUserByUsername()
+        UserDetails userDetails = userService.loadUserByUsername((String) claims.get("login"));
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                claims.get("login"),
+                userDetails,
                 null,
-                new ArrayList<>()
+                userDetails.getAuthorities()
         );
         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authToken);

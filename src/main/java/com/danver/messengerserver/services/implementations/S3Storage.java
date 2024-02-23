@@ -10,7 +10,6 @@ import com.danver.messengerserver.services.interfaces.StorageService;
 import com.danver.messengerserver.utils.FileStorageOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,22 +17,17 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 
-@Primary
 @Service
-@Qualifier("yandexS3Storage")
-public class YandexS3Storage implements StorageService {
-
+@Qualifier("s3Storage")
+public class S3Storage implements StorageService {
     private final AmazonS3 s3;
-    private final Environment env;
     private final String bucketName;
 
     @Autowired
-    public YandexS3Storage(AmazonS3 s3, Environment env) {
+    public S3Storage(AmazonS3 s3, Environment env) {
         this.s3 = s3;
-        this.env = env;
-        bucketName = this.env.getProperty("yandex.cloud.object-storage.bucket");
+        this.bucketName = env.getProperty("s3.storage.bucket");
     }
-
     @Override
     public String store(MultipartFile file) throws StorageException {
         return null;
@@ -58,8 +52,7 @@ public class YandexS3Storage implements StorageService {
                     .withMetadata(metadata);
             PutObjectResult result = s3.putObject(request);
             tempFile.delete();
-            String url = s3.getUrl(this.bucketName, key).toString();
-            return url;
+            return s3.getUrl(this.bucketName, key).toString();
         } catch (IOException e) {
             throw new StorageException("Couldn't upload file " + file.getOriginalFilename());
         } catch (SecurityException ex) {
@@ -74,6 +67,6 @@ public class YandexS3Storage implements StorageService {
 
     @Override
     public String getRootPath() {
-        return null;
+        return StorageService.super.getRootPath();
     }
 }

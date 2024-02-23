@@ -30,17 +30,27 @@ server:
 
 # Spring
 
+
 spring:
+    data:
+        redis:
+            host: localhost
+            port: 6379
+            server:
+                start-by-app: false
+            timeout: 5000
     servlet:
         multipart:
             max-request-size: 50MB
             max-file-size: 30MB
     cache:
         type: redis
-    data:
-        redis:
-            host: localhost
-            port: 6379
+    redis:
+        host: localhost
+        port: 6379
+        server:
+            start-by-app: false
+        timeout: 5000
     datasource:
         driver-class-name: org.postgresql.Driver
         initialize: true
@@ -54,18 +64,28 @@ spring:
             mode: always
             schema-locations: classpath*:database/schema.sql
 
+
+# S3
+s3:
+    # Storage
+    storage:
+        endpoint: s3.filebase.com
+        bucket: danver-messenger-service-storage
+        signingRegion: us-east-1
+        access-key: aaa
+        secret-key: aaa
+
 # Filebase storage service
 filebase:
     access-key: aaa
     api:
-        endpoint: https://s3.filebase.com
-    bucket:
-        default:
-            name: aaa
+        endpoint: s3.filebase.com
+    bucket: danver-messenger-service-storage
     secret-key: aaa
     root:
         folder:
             path: C:/Users/Danver/Projects/Messenger/storage/
+    signingRegion: us-east-1
 
 # Certificate
 trust:

@@ -23,7 +23,7 @@ public class UserController {
     private final StorageService storageService;
 
     @Autowired
-    public UserController(UserService userService, @Qualifier("yandexS3Storage") StorageService storageService) {
+    public UserController(UserService userService, @Qualifier("s3Storage") StorageService storageService) {
         this.userService = userService;
         this.storageService = storageService;
     }

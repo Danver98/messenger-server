@@ -56,6 +56,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User getUserByEmail(String email) {
+        log.info("Getting user with login '" + email + "' from database");
         String query = "SELECT * FROM Users WHERE email = ?";
         // We use UserRowMapper here to process password and salt
         try {

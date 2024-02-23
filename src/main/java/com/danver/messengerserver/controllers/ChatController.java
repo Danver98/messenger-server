@@ -38,7 +38,7 @@ public class ChatController {
     private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
 
     @Autowired
-    public ChatController(ChatService chatService, @Qualifier("yandexS3Storage") StorageService storageService) {
+    public ChatController(ChatService chatService, @Qualifier("s3Storage") StorageService storageService) {
         this.chatService = chatService;
         this.storageService = storageService;
     }

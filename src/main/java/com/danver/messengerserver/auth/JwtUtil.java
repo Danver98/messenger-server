@@ -70,6 +70,24 @@ public class JwtUtil {
         }
     }
 
+    /**
+     * Validates token and get its Claims
+     * else returns
+     * @param token
+     * @return Claims if success; else null
+     */
+    public Claims validateAndParse(String token) {
+        try {
+            return Jwts.parser()
+                    .setSigningKeyResolver(signingKeyResolver)
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException e) {
+            log.info("Token is invalid: " + e.getMessage());
+            return null;
+        }
+    }
+
     public Claims getClaims(String token) {
         return Jwts.parser()
                 .setSigningKeyResolver(signingKeyResolver)

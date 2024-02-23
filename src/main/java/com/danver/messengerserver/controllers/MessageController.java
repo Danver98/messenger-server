@@ -171,6 +171,7 @@ public class MessageController {
 
     @Scheduled(fixedRate = 60000)
     void clearActiveChats() {
-        logger.info("ClearActiveChats task running: " + Thread.currentThread().getName());
+        logger.info("ClearActiveChats task running: thread id - " + Thread.currentThread().getId() +
+                ", thread name - " + Thread.currentThread().getName());
     }
 }

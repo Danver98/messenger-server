@@ -8,6 +8,9 @@ import com.danver.messengerserver.services.interfaces.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -49,11 +52,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CachePut(cacheNames = "userDetails", key="#user.email")
     public void updateUser(User user) {
         this.userRepository.updateUser(user);
     }
 
     @Override
+    @CacheEvict(cacheNames = "userDetails")
     public void deleteUser(long id) {
         this.userRepository.deleteUser(id);
     }
@@ -71,6 +76,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "userDetails", sync = true)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = this.getUserByEmail(email);
         if (user == null) {
