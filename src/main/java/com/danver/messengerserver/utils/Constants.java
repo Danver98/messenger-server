@@ -18,4 +18,6 @@ public class Constants {
 
     public static final String MESSAGE_BROKER_CHAT_QUEUE_NAME = "/topic/chat/queue/messages";
 
+    public static final String REDIS_USERS_PERMISSIONS = "messenger-service:users:permissions";
+
 }
