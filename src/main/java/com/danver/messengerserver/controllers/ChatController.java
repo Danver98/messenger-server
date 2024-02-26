@@ -137,14 +137,14 @@ public class ChatController {
         Former MessageController
      */
 
-    @PostMapping("/messages")
-    ResponseEntity<List<Message>> getMessagesPaged(@RequestBody MessageRequestDTO dto) {
+    @PostMapping("/{id}/messages")
+    ResponseEntity<List<Message>> getMessagesPaged(@PathVariable long id, @RequestBody MessageRequestDTO dto) {
         List<Message> messages = messageService.getMessages(dto);
         return new ResponseEntity<>(messages, HttpStatus.OK);
     }
 
-    @PostMapping("/messages/create")
-    ResponseEntity<?> createMessageHTTP(@RequestBody Message dto) {
+    @PostMapping("/{id}/messages/create")
+    ResponseEntity<?> createMessageHTTP(@PathVariable long id, @RequestBody Message dto) {
         try {
             Message message = messageService.createMessage(dto);
             return new ResponseEntity<>(message, HttpStatus.OK);
