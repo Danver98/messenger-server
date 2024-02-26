@@ -6,12 +6,19 @@ import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.repositories.mappers.ChatListRowMapper;
 import com.danver.messengerserver.repositories.mappers.ChatRowMapper;
 import com.danver.messengerserver.utils.Constants;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +26,10 @@ import java.sql.Types;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Repository
 public class ChatRepositoryImpl implements ChatRepository {
 
@@ -31,14 +39,17 @@ public class ChatRepositoryImpl implements ChatRepository {
     private record ChatPagingDtoProperTime(Long userId, OffsetDateTime time, Long chatId, Direction direction, Integer count) {
     }
 
+    private final RedisTemplate<String, ?> redisTemplate;
+
     //Chats TABLE FIELDS:
     //id, name, avatarUrl, lastChanged, [participants], [messages]?
     // TODO: optimize queries
 
     @Autowired
-    public ChatRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public ChatRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, ?> redisTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -281,23 +292,6 @@ public class ChatRepositoryImpl implements ChatRepository {
     }
 
     @Override
-    public boolean userInChat(long userId, long chatId) {
-        String query = """
-            select EXISTS (
-                select
-                    1
-                FROM
-                    UsersChats uc
-                WHERE
-                    uc.userId = ?
-                    AND uc.chatId = ?
-            )
-            
-        """;
-        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(query, Boolean.class, userId, chatId));
-    }
-
-    @Override
     public Chat exists(Long[] userIds) {
         if (userIds.length < 2) return null;
         if (Objects.equals(userIds[0], userIds[1])) return null;
@@ -348,6 +342,7 @@ public class ChatRepositoryImpl implements ChatRepository {
 
     @Override
     public void addParticipants(long chatId, long[] users) {
+        addParticipantsToRedisAsync(chatId, users);
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("chatId", chatId);
         namedParameters.addValue("users", users);
@@ -358,5 +353,31 @@ public class ChatRepositoryImpl implements ChatRepository {
                 :chatId, unnest(:users)
         """;
         jdbcTemplate.update(query, namedParameters);
+    }
+
+    @Async
+    public void addParticipantsToRedisAsync(long chatId, long[] users) {
+        log.info("Executing addParticipantsToRedisAsync method - " + Thread.currentThread().getName());
+        HashOperations<String, String, String> hashOps = redisTemplate.opsForHash();
+        List<String> values = hashOps.multiGet(Constants.REDIS_USERS_PERMISSIONS, Arrays.stream(users).mapToObj(String::valueOf).toList());
+        int i = 0;
+        Map<String, String> userChats = new HashMap<>();
+        for (long userId: users) {
+            List<String> chatList = new ArrayList<>(List.of(values.get(i++).split(",")));
+            chatList.add(Long.toString(chatId));
+            userChats.put(Long.toString(userId), chatList.toString());
+        }
+        hashOps.putAll(Constants.REDIS_USERS_PERMISSIONS, userChats);
+    }
+
+    private List<Long> getChats(Long userId){
+        return jdbcTemplate.queryForList("""
+                select distinct
+                    "chatId"
+                from
+                    "usersChats"
+                where
+                    "userid" = ?
+        """, Long.class, userId);
     }
 }

@@ -25,12 +25,6 @@ public interface ChatRepository {
     void deleteChat(long id);
 
     /**
-     *
-     * @return whether user is present in given chat
-     */
-    boolean userInChat(long userId, long chatId);
-
-    /**
      * Check whether chat with given users exists
      * @return existing chat or null
      */

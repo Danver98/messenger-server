@@ -55,11 +55,6 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public boolean userInChat(long userId, long chatId) {
-        return chatRepository.userInChat(userId, chatId);
-    }
-
-    @Override
     public Chat exists(Long[] userIds) {
         return chatRepository.exists(userIds);
     }

@@ -26,11 +26,6 @@ public interface ChatService {
 
      void deleteChat(long id);
 
-     /**
-      *
-      * @return whether user is present in given chat
-      */
-     boolean userInChat(long userId, long chatId);
 
      /**
       * Check whether chat with given users exists
