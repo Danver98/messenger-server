@@ -45,7 +45,6 @@ public class PublicTestController {
 
     @PostMapping("/user-chats-redis/update")
     @GetMapping("/user-chats-redis/update")
-    @Autowired
     ResponseEntity<?> setUserChatsRedisInfo() {
 
         List<Map<String, Object>> usersChats = jdbcTemplate.queryForList("""
@@ -63,14 +62,12 @@ public class PublicTestController {
         }
 
         HashOperations<String, String, String> hashOps = redisTemplate.opsForHash();
-
         try {
             hashOps.putAll(Constants.REDIS_USERS_PERMISSIONS, usersChatsRedis);
         } catch (RedisConnectionFailureException ex) {
-            log.info("Couldn't connect to Redis: " + ex.getMessage());
-
+            log.info("Unable to connect to Redis server");
+            // TODO: queue write to Redis later
         }
-
         return null;
     }
 }

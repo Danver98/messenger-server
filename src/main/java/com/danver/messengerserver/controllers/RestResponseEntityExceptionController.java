@@ -33,4 +33,5 @@ public class RestResponseEntityExceptionController extends ResponseEntityExcepti
         log.error(exception.getMessage());
         return new ResponseEntity<>("Error occurred when completing task", HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
 }

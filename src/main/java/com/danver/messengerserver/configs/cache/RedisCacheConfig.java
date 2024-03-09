@@ -1,17 +1,17 @@
-package com.danver.messengerserver.configs;
+package com.danver.messengerserver.configs.cache;
 
-import com.danver.messengerserver.exceptions.handlers.RedisCacheErrorHandler;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.annotation.*;
 import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 
@@ -23,23 +23,23 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Configuration
 @EnableCaching
-public class RedisCacheConfig {
+public class RedisCacheConfig implements CachingConfigurer {
 
     private Process process;
     @Value("${spring.data.redis.server.start-by-app}")
     private String startRedisByApp;
+
 
     @Bean
     @Primary
     public RedisTemplate<?, ?> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<?, ?> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-
         return template;
     }
 
-    @Bean
-    public CacheErrorHandler cacheErrorHandler() {
+    @Override
+    public CacheErrorHandler errorHandler() {
         return new RedisCacheErrorHandler();
     }
 
@@ -49,11 +49,14 @@ public class RedisCacheConfig {
                 .prefixCacheNameWith(this.getClass().getPackageName() + ".")
                 .entryTtl(Duration.ofHours(1))
                 .disableCachingNullValues();
-        return RedisCacheManager.builder(connectionFactory)
+
+        RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(connectionFactory);
+        RedisCacheManager.RedisCacheManagerBuilder redisCacheManagerBuilder = RedisCacheManager.builder(cacheWriter)
                 .cacheDefaults(config)
                 // userDetails cache config
-                .withCacheConfiguration("userDetails", userDetailsConfig())
-                .build();
+                .withCacheConfiguration("userDetails", userDetailsConfig());
+
+        return CustomRedisCacheManager.of(cacheWriter, redisCacheManagerBuilder);
     }
 
     private RedisCacheConfiguration userDetailsConfig() {

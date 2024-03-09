@@ -22,6 +22,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -67,7 +68,6 @@ public class ChatController {
 
     @PostMapping("/")
     List<Chat> list(@RequestBody ChatPagingDTO dto) {
-        // TODO: Check rights
         return chatService.getChats(dto);
     }
 
@@ -78,7 +78,6 @@ public class ChatController {
 
     @PostMapping("/create")
     Chat createChat(@RequestBody Chat chat) {
-        // TODO: use
         return chatService.createChat(chat);
     }
 
@@ -89,7 +88,6 @@ public class ChatController {
 
     @DeleteMapping("/{id}")
     void deleteChat(@RequestParam long userId, @PathVariable long id) {
-        // TODO: publish event
         chatService.deleteChat(id);
     }
 
@@ -100,7 +98,6 @@ public class ChatController {
 
     @PostMapping("/add")
     ResponseEntity<?> addParticipants(@RequestBody ChatRequestDTO dto) {
-        // if authorized
         this.chatService.addParticipants(dto.getChatId(), dto.getUsers());
         return ResponseEntity.ok().build();
     }
@@ -156,7 +153,6 @@ public class ChatController {
 
     @MessageMapping("/chats/create-invite")
     ResponseEntity<?> createChat(@Payload String messageDTO) {
-        // TODO: check authority
         try {
             MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
             Message message = dto.getMessage();
@@ -198,7 +194,6 @@ public class ChatController {
 
     @MessageMapping("/chats/private/send-message")
     ResponseEntity<?> sendMessagePrivate(@Payload String messageDTO) {
-        // TODO: check authority
         try {
             MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
             Message message = messageService.createMessage(dto.getMessage());
@@ -218,7 +213,6 @@ public class ChatController {
     @MessageMapping("/chats/public/send-message")
     ResponseEntity<?> sendMessage(@Payload String messageDTO) {
         // Unfortunately cannot find a workaround to pass MessageDTO directly
-        // TODO: check authority
         // TODO: append auxiliary info (ex. author's avatar url, name, surname) if absent
         try {
             MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);

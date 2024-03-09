@@ -75,6 +75,7 @@ public class UserServiceImpl implements UserService {
         return this.userRepository.list(dto);
     }
 
+    // TODO: CacheErrorHandler() isn't invoked with 'sync' option enabled
     @Override
     @Cacheable(value = "userDetails", sync = true)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {

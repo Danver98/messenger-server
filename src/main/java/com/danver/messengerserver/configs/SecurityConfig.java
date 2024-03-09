@@ -1,5 +1,6 @@
 package com.danver.messengerserver.configs;
 
+import com.danver.messengerserver.filters.ChatsAuthorizationFilter;
 import com.danver.messengerserver.filters.JwtTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +13,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -26,6 +28,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     private final JwtTokenFilter jwtTokenFilter;
+    private final ChatsAuthorizationFilter chatsAuthorizationFilter;
 
     private final String[] urlWhiteList = {
             "/",
@@ -36,8 +39,9 @@ public class SecurityConfig {
             "/public/**"
     };
     @Autowired
-    public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
+    public SecurityConfig(JwtTokenFilter jwtTokenFilter, ChatsAuthorizationFilter chatsAuthorizationFilter) {
         this.jwtTokenFilter = jwtTokenFilter;
+        this.chatsAuthorizationFilter = chatsAuthorizationFilter;
     }
 
     @Bean
@@ -68,12 +72,14 @@ public class SecurityConfig {
                 .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests((authorize) -> authorize
                         .requestMatchers(this.urlWhiteList).permitAll()
+                        //.requestMatchers("/chats/**").access(new ChatsAuthorizationManager())
                         .anyRequest()
                         .authenticated()
                 )
                 .headers( (headers) -> {
                 })
                 .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class) // or addFilterAt - instead of some filter
+                .addFilterBefore(chatsAuthorizationFilter, AuthorizationFilter.class)
                 .build();
     }
 }
