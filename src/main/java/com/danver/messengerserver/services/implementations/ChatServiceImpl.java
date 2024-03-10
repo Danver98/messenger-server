@@ -5,20 +5,24 @@ import com.danver.messengerserver.models.ChatPagingDTO;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.services.interfaces.ChatService;
+import com.danver.messengerserver.services.permission.PermissionService;
+import com.danver.messengerserver.services.permission.PermissionType;
+import com.danver.messengerserver.services.permission.ResourceType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ChatServiceImpl implements ChatService {
 
     private final ChatRepository chatRepository;
+    private final PermissionService permissionService;
 
     @Autowired
-    public ChatServiceImpl(ChatRepository chatRepository) {
+    public ChatServiceImpl(ChatRepository chatRepository, PermissionService permissionService) {
         this.chatRepository = chatRepository;
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -62,5 +66,8 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void addParticipants(long chatId, long[] users) {
        this.chatRepository.addParticipants(chatId, users);
+       for (long user: users) {
+           permissionService.grantAuthority(user, chatId, ResourceType.CHAT.getValue(), PermissionType.Chat.DEFAULT.getValue());
+       }
     }
 }

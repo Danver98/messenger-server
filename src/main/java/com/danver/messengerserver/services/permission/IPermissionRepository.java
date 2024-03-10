@@ -24,4 +24,6 @@ public interface IPermissionRepository<U extends UserDetails, R> {
      * @return negative value if operation failed, zero or positive number otherwise
      */
     int addPermission(U principal, R resource, int resourceType, String permission);
+
+    int addPermission(Long user, R resource, int resourceType, String permission);
 }

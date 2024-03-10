@@ -11,18 +11,21 @@ import com.danver.messengerserver.utils.FileStorageOptions;
 import com.danver.messengerserver.utils.FileUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.tomcat.util.net.openssl.ciphers.Authentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -34,11 +37,6 @@ import java.util.*;
 @RestController
 @RequestMapping("/chats")
 public class ChatController {
-    /*
-        TODO: We should take user from a context
-        TODO: check rights!!!
-     */
-
     private final ChatService chatService;
     private final MessageService messageService;
     private final StorageService storageService;
@@ -56,10 +54,11 @@ public class ChatController {
         this.objectMapper = objectMapper;
     }
 
-    @GetMapping("/secret")
+    @PostMapping("/secret")
     String getSecret(Authentication authentication,
                      Principal principal,
-                     @AuthenticationPrincipal UserDetails userDetails) {
+                     @AuthenticationPrincipal UserDetails userDetails,
+                     @Nullable @RequestBody ChatPagingDTO dto) {
         return "This is a secret message!";
     }
 
@@ -67,6 +66,7 @@ public class ChatController {
     // Maybe we should split methods to send data either to private chat or to group chat (look https://www.baeldung.com/spring-websockets-send-message-to-user)
 
     @PostMapping("/")
+    @PreAuthorize("T(java.lang.Long).toString(#dto.getUserId()) == authentication.name")
     List<Chat> list(@RequestBody ChatPagingDTO dto) {
         return chatService.getChats(dto);
     }

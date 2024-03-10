@@ -8,12 +8,7 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Repository;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +63,11 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
         return 0;
     }
 
+    @Override
+    public int addPermission(Long user, Long resource, int resourceType, String permission) {
+        return addPermission(User.builder().id(user).build(), resource, resourceType, permission);
+    }
+
     private List<String> getPermissionsFromDB(User principal, Long resourceId, int resourceType) {
         return jdbcTemplate.queryForList("""
             select
@@ -76,8 +76,8 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
                 "user_permissions"
             where
                 "userId" = ?
-                and "resourceId" = ?
-                and "resourceType" = ?
+                and "resourceId" is not distinct from ?
+                and "resourceType" is not distinct from ?
         """, String.class, principal.getId(), resourceId, resourceType);
     }
 
@@ -87,7 +87,7 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
                 values (?, ?, ?, ?::text[])
             on conflict do update
                 set "permissions" = "permissions" || ?
-        """, principal, resourceId, resourceType, permission, permission);
+        """, principal.getId(), resourceId, resourceType, permission, permission);
         return 0;
     }
 

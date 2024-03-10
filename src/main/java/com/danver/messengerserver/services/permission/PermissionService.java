@@ -4,7 +4,6 @@ import com.danver.messengerserver.models.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -21,7 +20,7 @@ public class PermissionService implements IPermissionService<User, Long> {
     }
 
     @Override
-    public boolean isAuthorized(@AuthenticationPrincipal User principal, Long resourceId, int resourceType, String permission) {
+    public boolean isAuthorized(User principal, Long resourceId, int resourceType, String permission) {
         List<String> permissions = permissionRepository.getPermissions(principal, resourceId, resourceType);
         if (permissions == null || permissions.isEmpty()) {
             return false;
@@ -32,5 +31,10 @@ public class PermissionService implements IPermissionService<User, Long> {
     @Override
     public int grantAuthority(User principal, Long resourceId, int resourceType, String permission) {
         return permissionRepository.addPermission(principal, resourceId, resourceType, permission);
+    }
+
+    @Override
+    public int grantAuthority(Long user, Long resource, int resourceType, String permission) {
+        return permissionRepository.addPermission(user, resource, resourceType, permission);
     }
 }

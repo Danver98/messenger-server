@@ -36,6 +36,13 @@ public interface IPermissionService<U extends UserDetails, R> {
         return 0;
     }
 
+    default int grantAuthority(Long user, R resource, int resourceType, String permission) {
+        return 0;
+    }
+    default int grantAuthority(Long user, R resource, int resourceType, List<?> permissions) {
+        return 0;
+    }
+
     default int revokeAuthority(U principal, R resource, int resourceType, String permission) {
         return 0;
     }

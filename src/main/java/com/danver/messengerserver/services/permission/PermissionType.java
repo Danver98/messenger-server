@@ -3,9 +3,17 @@ package com.danver.messengerserver.services.permission;
 public enum PermissionType {
     ;
     public enum Chat {
+        ANY("Any"),
         CREATE("Create"),
+        /*
+            DEFAULT - can read/send messages and make basic actions as a chat participant
+         */
+        DEFAULT("Default"),
         EDIT("Edit"),
-        DELETE("Delete");
+        DELETE("Delete"),
+        LIST("List"),
+        READ("Read"),
+        SEND("Send");
         private final String value;
         Chat(String value) {
             this.value = value;

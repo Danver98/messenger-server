@@ -1,7 +1,9 @@
 package com.danver.messengerserver.filters;
 
 import com.danver.messengerserver.auth.JwtUtil;
+import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.services.interfaces.UserService;
+import com.danver.messengerserver.utils.Constants;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -51,7 +53,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
         // TODO: use Redis or Some in-memory storage to get full info about user
         //  (substitution for DB call UserDetailsService.loadUserByUsername()
-        UserDetails userDetails = userService.loadUserByUsername((String) claims.get("login"));
+        UserDetails userDetails = userService.loadUserByUsername((String) claims.get(Constants.USER_JWT_LOGIN_KEY));
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                 userDetails,
                 null,

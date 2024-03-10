@@ -83,8 +83,8 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new UsernameNotFoundException(String.format("User %s is not found", email));
         }
-        // TODO: check compatibility with local User class
-        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
+        //return user; user.getEmail() as username
+        return new org.springframework.security.core.userdetails.User(Long.toString(user.getId()), user.getPassword(),
                  true, true, true, true, new HashSet<>());
     }
 }
