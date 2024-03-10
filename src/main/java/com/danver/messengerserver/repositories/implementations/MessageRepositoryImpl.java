@@ -51,34 +51,34 @@ public class MessageRepositoryImpl implements MessageRepository {
         String query = String.format("""
                 SELECT
                     Messages.id,
-                    authorId,
+                    "authorId",
                     \"name\",
                     surname,
-                    avatarUrl,
-                    chatId,
+                    "avatarUrl",
+                    "chatId",
                     type,
                     value,
                     value_type,
-                    lastChanged
+                    "lastChanged"
                 FROM
                     Messages
                 INNER JOIN Users
-                    ON Messages.authorId = Users.id
+                    ON Messages."authorId" = Users.id
                 WHERE
-                    chatId = :chatId
+                    "chatId" = :chatId
                     AND CASE
                             WHEN :time::timestamp with time zone IS NULL
                                 THEN TRUE
                             ELSE
                                 CASE
                                     WHEN :messageId::uuid IS NULL
-                                        THEN lastChanged %c :time::timestamp with time zone
+                                        THEN "lastChanged" %c :time::timestamp with time zone
                                     ELSE
-                                        (lastChanged, Messages.id) %c (:time::timestamp with time zone, :messageId::uuid)
+                                        ("lastChanged", Messages.id) %c (:time::timestamp with time zone, :messageId::uuid)
                                 END
                         END
                 ORDER BY
-                    lastChanged %s
+                    "lastChanged" %s
                 FETCH FIRST :count ROWS ONLY
                 """, compareSign, compareSign, order);
 
@@ -91,7 +91,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         logger.info("Writing message with id: " + message.getId() + " id to database");
         String query = """
                     insert into
-                        Messages (id, chatId, authorId, lastChanged, value, type, value_type)
+                        Messages (id, "chatId", "authorId", "lastChanged", value, type, value_type)
                     values
                         (?, ?, ?, ?, ?, ?, ?)
                 """;

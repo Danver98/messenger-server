@@ -1,5 +1,5 @@
 -- Users table
-CREATE TABLE IF NOT EXISTS Users
+CREATE TABLE IF NOT EXISTS "Users"
 (
     "id"           bigserial PRIMARY KEY,
     "name"         varchar(30)  NOT NULL,
@@ -32,7 +32,7 @@ CREATE OR REPLACE TRIGGER add_user_to_all_users_chat_trg AFTER INSERT ON Users
 
 
 -- Chats table
-CREATE TABLE IF NOT EXISTS Chats
+CREATE TABLE IF NOT EXISTS "Chats"
 (
     "id"        bigserial PRIMARY KEY,
     "name"      varchar(100),
@@ -60,7 +60,7 @@ DO
 
 
 -- Message table
-CREATE TABLE IF NOT EXISTS Messages
+CREATE TABLE IF NOT EXISTS "Messages"
 (
     "id"           uuid PRIMARY KEY,
     "chatId"       bigint    NOT NULL references Chats (id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -81,7 +81,7 @@ BEGIN
             "lastChanged" = NEW."lastChanged",
             draft = null
         WHERE
-            id = NEW.chatId;
+            id = NEW."chatId";
         RETURN NEW;
     ELSE IF (TG_OP = ''DELETE'') THEN
         UPDATE
@@ -90,7 +90,7 @@ BEGIN
             "lastChanged" = OLD."lastChanged"
             --draft = OLD.draft
         WHERE
-            id = NEW.chatId;
+            id = NEW."chatId";
         RETURN OLD;
     end if;
     END IF;
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS "UsersPermissions"
 (
     "id" bigserial PRIMARY KEY,
     "user" bigint NOT NULL REFERENCES Users (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    "resource" bigint NOT NULL, -- references different objects from different tables
+    "resource" bigint, -- references different objects from different tables
     "resource_type" smallint NOT NULL,
     "permissions" text[],
     UNIQUE ("user", "resource", "resource_type")

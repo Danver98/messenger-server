@@ -57,7 +57,7 @@ public class ChatRepositoryImpl implements ChatRepository {
     public Chat createChat(Chat chat) {
         String query = """
         insert into
-            Chats (name, avatarUrl, private, draft)
+            Chats (name, "avatarUrl", private, draft)
         values
             (:name, :avatar, :private, true)
         on conflict
@@ -107,31 +107,31 @@ public class ChatRepositoryImpl implements ChatRepository {
         String query = String.format("""
                 with last_msgs as (
                     select
-                        m.chatId,
+                        m."chatId",
                         m.id,
                         m.type,
                         m.value_type,
                         m.value,
-                        m.lastChanged,
+                        m."lastChanged",
                         author.id "authorId",
                         author.name "authorName",
                         author.surname "authorSurname",
-                        author.avatarUrl "authorAvatarUrl"
+                        author."avatarUrl" "authorAvatarUrl"
                     from
                         Messages m
                     join (
                         select
-                            m.chatId,
-                            max(m.lastChanged) lastChanged
+                            m."chatId",
+                            max(m."lastChanged") "lastChanged"
                         from
                             Messages m
                         group by
-                            m.chatId
+                            m."chatId"
                     ) max_data
-                        on m.chatId = max_data.chatId
-                        and m.lastChanged = max_data.lastChanged
+                        on m."chatId" = max_data."chatId"
+                        and m."lastChanged" = max_data."lastChanged"
                     join Users author
-                        on m.authorId = author.id
+                        on m."authorId" = author.id
                 ), private_chats as (
                     select
                         array_agg(c.id) "ids"
@@ -164,17 +164,17 @@ public class ChatRepositoryImpl implements ChatRepository {
                         else
                             c.name
                     end "name",
-                    c.avatarUrl,
-                    c.lastChanged,
+                    c."avatarUrl",
+                    c."lastChanged",
                     c.private,
                     c.draft,
                     -- last message in chat
                     last_msg.id "lastMsg.id",
-                    last_msg.chatId "lastMsg.chatId",
+                    last_msg."chatId" "lastMsg.chatId",
                     last_msg.type "lastMsg.type",
                     last_msg.value_type "lastMsg.valueType",
                     last_msg.value "lastMsg.value",
-                    last_msg.lastChanged "lastMsg.lastChanged",
+                    last_msg."lastChanged" "lastMsg.lastChanged",
                     last_msg."authorId" "lastMsg.authorId",
                     last_msg."authorName" "lastMsg.authorName",
                     last_msg."authorSurname" "lastMsg.authorSurname",
@@ -194,7 +194,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                     from
                         last_msgs m
                     where
-                        m.chatId = c.id
+                        m."chatId" = c.id
                 ) last_msg
                 ON TRUE
                 WHERE
@@ -207,13 +207,13 @@ public class ChatRepositoryImpl implements ChatRepository {
                         ELSE
                             CASE
                                     WHEN :chatId IS NULL
-                                        THEN c.lastChanged %c :time::timestamp with time zone
+                                        THEN c."lastChanged" %c :time::timestamp with time zone
                                     ELSE
-                                        (c.lastChanged, c.id) %c (:time::timestamp with time zone, :chatId)
+                                        (c."lastChanged", c.id) %c (:time::timestamp with time zone, :chatId)
                             END
                     END
                 ORDER BY
-                    c.lastChanged %s,
+                    c."lastChanged" %s,
                     c.id
                 FETCH FIRST :count ROWS ONLY
                 """, compareSign, compareSign, order);
@@ -274,9 +274,9 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public void updateChat(Chat chat) {
-        String query = "UPDATE Chats SET name = ?, avatarUrl = ?, private = ? WHERE id = ?";
+        String query = "UPDATE Chats SET name = ?, \"avatarUrl\" = ?, private = ? WHERE id = ?";
         jdbcTemplate.update(query, chat.getName(), chat.getAvatarUrl(), chat.getId(), chat.isPrivate());
-        query = "DELETE FROM UsersChats WHERE chatId = ?";
+        query = "DELETE FROM UsersChats WHERE \"chatId\" = ?";
         jdbcTemplate.update(query, chat.getId());
 /*        query = "INSERT INTO UsersChats VALUES (?, ?)";
         List<Object[]> usersChats = chat.getParticipants().stream()
