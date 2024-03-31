@@ -10,23 +10,30 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import com.danver.messengerserver.services.permission.PermissionType;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.danver.messengerserver.utils.Constants.X_REQUEST_RESOURCE_OBJECT;
 
 @Slf4j
 @Component
 public class ChatsAuthorizationFilter extends OncePerRequestFilter {
 
     private final PermissionService permissionService;
+    @Value("${application.authorization.enabled}")
+    private boolean appAuthorizationEnabled;
 
     @Autowired
     public ChatsAuthorizationFilter(PermissionService permissionService) {
@@ -38,15 +45,16 @@ public class ChatsAuthorizationFilter extends OncePerRequestFilter {
         CachedRequestWrapper cachedRequestWrapper =
                 new CachedRequestWrapper(request);
 
-/*        if (!isAuthorized(cachedRequestWrapper)) {
+        if (!isAuthorized(cachedRequestWrapper)) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;
-        }*/
+        }
         filterChain.doFilter(cachedRequestWrapper, response);
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        if (!appAuthorizationEnabled) return true;
         log.info("JwtTokenFilter:doFilterInternal(). RequestPath: " + request.getRequestURI());
         log.info("JwtTokenFilter:shouldNotFilter(). getPathInfo: " + request.getPathInfo());
         log.info("JwtTokenFilter:shouldNotFilter(). getServletPath: " + request.getServletPath());
@@ -57,15 +65,27 @@ public class ChatsAuthorizationFilter extends OncePerRequestFilter {
 
     private boolean isAuthorized(HttpServletRequest request) throws IOException {
         byte[] data = StreamUtils.copyToByteArray(request.getInputStream());
-        Map<String, Object> requestBody = new ObjectMapper().readValue(data, Map.class);
+        Map<String, Object> requestBody = new HashMap<>();
+        try {
+            requestBody = new ObjectMapper().readValue(data, Map.class);
+        } catch (IOException ignored) {
+
+        }
         String methodName = request.getMethod();
         String path = request.getServletPath();
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long chatId = (Long) requestBody.get("chatId");
+        Long chatId = null;
+        if (requestBody.get("chatId") != null){
+            chatId = Long.parseLong(String.valueOf(requestBody.get("chatId")));
+        }
         if (chatId == null) {
-            String requestResourceObject = request.getHeader("X-request-resource-object");
+            String requestResourceObject = request.getHeader(X_REQUEST_RESOURCE_OBJECT);
             if (requestResourceObject != null && !requestResourceObject.isEmpty()) {
-                chatId = Long.parseLong(requestResourceObject);
+                try {
+                    chatId = Long.parseLong(requestResourceObject);
+                } catch ( NumberFormatException ignored) {
+
+                }
             }
         }
         String permission = PermissionType.Chat.DEFAULT.getValue();
@@ -76,9 +96,14 @@ public class ChatsAuthorizationFilter extends OncePerRequestFilter {
                 Checked directly in controller
              */
             return true;
+        } else if (path.matches("^/chats/(\\d+).*")) {
+            // TODO: replace resource objectId extraction with headers
+            Pattern pattern = Pattern.compile("^/chats/(\\d+).*");
+            Matcher matcher = pattern.matcher(path);
+            chatId = Long.parseLong(path.split("/")[2]);
         }
         // Default check: user can complete operations if he's present in the chat
-        return permissionService.isAuthorized((User) authentication.getPrincipal(),
+        return permissionService.isAuthorized( (UserDetails) authentication.getPrincipal(),
                 chatId, resourceType,
                 permission);
         /*else if (methodName.equals("GET") && path.matches("^/chats/(\\d+)$")) {

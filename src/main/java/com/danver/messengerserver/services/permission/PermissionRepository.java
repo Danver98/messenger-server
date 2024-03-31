@@ -8,6 +8,7 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,7 @@ import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Repository
-public class PermissionRepository implements IPermissionRepository<User, Long> {
+public class PermissionRepository implements IPermissionRepository<UserDetails, Long> {
     private final RedisTemplate<String, ?> redis;
     private final JdbcTemplate jdbcTemplate;
     private final static String PERMISSION_KEY = Constants.REDIS_USERS_PERMISSIONS;
@@ -28,9 +29,9 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
     }
 
     @Override
-    public List<String> getPermissions(User principal, Long resourceId, int resourceType) {
+    public List<String> getPermissions(UserDetails principal, Long resourceId, int resourceType) {
         HashOperations<String, String, String> hashOps = redis.opsForHash();
-        String key = principal.getId() + ":" + resourceId + ":" + resourceType;
+        String key = principal.getUsername() + ":" + resourceId + ":" + resourceType;
         List<String> permissions = null;
         try{
             String permissionsStr = hashOps.get(PERMISSION_KEY, key);
@@ -40,16 +41,17 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
             }
             permissions = List.of(permissionsStr.replace("[", "")
                     .replace("]", "")
+                    .replace(" ", "")
                     .split(","));
         } catch( RedisConnectionFailureException ex) {
             log.info("Couldn't connect to Redis server");
-            permissions = getPermissionsFromDB(principal, resourceId, resourceType);
+            permissions = getPermissionsFromDB(Long.parseLong(principal.getUsername()), resourceId, resourceType);
         }
         return permissions;
     }
 
     @Override
-    public int addPermission(User principal, Long resourceId, int resourceType, String permission) {
+    public int addPermission(UserDetails principal, Long resourceId, int resourceType, String permission) {
         CompletableFuture<Integer> redisFuture = CompletableFuture.supplyAsync(() -> addPermissionToRedis(principal, resourceId, resourceType, permission));
         CompletableFuture<Integer> dbFuture = CompletableFuture.supplyAsync(() -> addPermissionToDB(principal, resourceId, resourceType, permission));
         try {
@@ -68,26 +70,32 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
         return addPermission(User.builder().id(user).build(), resource, resourceType, permission);
     }
 
-    private List<String> getPermissionsFromDB(User principal, Long resourceId, int resourceType) {
-        return jdbcTemplate.queryForList("""
+    private List<String> getPermissionsFromDB(Long user, Long resourceId, int resourceType) {
+        String permissionsStr = jdbcTemplate.queryForObject("""
             select
-                "permissions"
+                "permissions"::text[]
             from
-                "user_permissions"
+                "UsersPermissions"
             where
-                "userId" = ?
-                and "resourceId" is not distinct from ?
-                and "resourceType" is not distinct from ?
-        """, String.class, principal.getId(), resourceId, resourceType);
+                "user" = ?
+                and "resource" is not distinct from ?
+                and "resource_type" is not distinct from ?
+        """, String.class, user, resourceId, resourceType);
+        if (permissionsStr == null) {
+            return null;
+        }
+        return List.of(permissionsStr.replace("{", "")
+                .replace("}", "")
+                .split(","));
     }
 
-    private int addPermissionToDB(User principal, Long resourceId, int resourceType, String permission) {
+    private int addPermissionToDB(UserDetails principal, Long resourceId, int resourceType, String permission) {
         jdbcTemplate.update("""
             insert into "UsersPermissions" ("user", "resource", "resource_type", "permissions")
                 values (?, ?, ?, ?::text[])
             on conflict do update
                 set "permissions" = "permissions" || ?
-        """, principal.getId(), resourceId, resourceType, permission, permission);
+        """, principal.getUsername(), resourceId, resourceType, permission, permission);
         return 0;
     }
 
@@ -99,9 +107,10 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
      * @param permission
      * @return negative value if operation failed, zero or positive number otherwise
      */
-    private int addPermissionToRedis(User principal, Long resourceId, int resourceType, String permission) {
+    private int addPermissionToRedis(UserDetails principal, Long resourceId, int resourceType, String permission) {
+        // TODO: process situation, when data is sent to redis, but machine had stopped before data was put to persistent store
         HashOperations<String, String, String> hashOps = redis.opsForHash();
-        String key = principal.getId() + ":" + resourceId + ":" + resourceType;
+        String key = principal.getUsername() + ":" + resourceId + ":" + resourceType;
         List<String> permissions = this.getPermissions(principal, resourceId, resourceType);
         if (permissions == null) {
             permissions = new ArrayList<>();
@@ -117,5 +126,4 @@ public class PermissionRepository implements IPermissionRepository<User, Long> {
         }
         return 0;
     }
-
 }

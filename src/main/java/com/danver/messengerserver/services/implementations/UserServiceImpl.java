@@ -76,8 +76,9 @@ public class UserServiceImpl implements UserService {
     }
 
     // TODO: CacheErrorHandler() isn't invoked with 'sync' option enabled
+    // TODO: TimeoutConnection error is also unhandled with 'sync' = true
     @Override
-    @Cacheable(value = "userDetails", sync = true)
+    @Cacheable(value = "userDetails", sync = true) //, sync = true
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = this.getUserByEmail(email);
         if (user == null) {

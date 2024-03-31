@@ -1,12 +1,15 @@
+# Application
 application:
     authentication:
+        enabled: true
+    authorization:
         enabled: true
 
 # JWT
 jwt:
     exp-in-millis: 3600000
-    iss: danver-messenger-service
-    secret: LYkQCrGSh@x&M*RAAdAg.MPt2r2PCJ$56bLf}RAX
+    iss: ${APP_JWT_ISSUER}
+    secret: ${APP_JWT_BASE_SECRET}
     sign-alg: HS256
 
 # Server
@@ -23,14 +26,13 @@ server:
         context-path: /messenger/api/v1
     ssl:
         enabled: true
+        # In production move this data to secret vault
         key-alias: messenger-service
         key-store: classpath:keystore/messenger-service.p12
-        key-store-password: messenger-service
+        key-store-password: ${APP_SERVER_SSL_KEY_STORE_PASSWORD}
         key-store-type: PKCS12
 
 # Spring
-
-
 spring:
     data:
         redis:
@@ -38,7 +40,7 @@ spring:
             port: 6379
             server:
                 start-by-app: false
-            timeout: 5000
+            timeout: 1000
     servlet:
         multipart:
             max-request-size: 50MB
@@ -54,9 +56,9 @@ spring:
     datasource:
         driver-class-name: org.postgresql.Driver
         initialize: true
-        password: flvbhfk
-        url: jdbc:postgresql://localhost:5432/Messenger
-        username: postgres
+        password: ${APP_DB_PASSWORD}
+        url: jdbc:postgresql://${APP_DB_HOST}:${APP_DB_PORT}/${APP_DB_NAME}
+        username: ${APP_DB_USERNAME}
     jpa:
         show-sql: true
     sql:
@@ -64,47 +66,35 @@ spring:
             mode: always
             schema-locations: classpath*:database/schema.sql
 
-
 # S3
 s3:
     # Storage
     storage:
         endpoint: s3.filebase.com
-        bucket: danver-messenger-service-storage
+        bucket: ${APP_S3_STORAGE_BUCKET_NAME}
         signingRegion: us-east-1
         access-key: aaa
         secret-key: aaa
 
-# Filebase storage service
-filebase:
-    access-key: aaa
-    api:
-        endpoint: s3.filebase.com
-    bucket: danver-messenger-service-storage
-    secret-key: aaa
-    root:
-        folder:
-            path: C:/Users/Danver/Projects/Messenger/storage/
-    signingRegion: us-east-1
-
 # Certificate
 trust:
+    # In production move this data to secret vault
     store: classpath:keystore/messenger-service.p12
-    store.password: messenger-service
+    store.password: ${APP_TRUST_STORE_PASSWORD}
 
-# Yandex CLoud
+# Yandex Cloud
 yandex:
     cloud:
         object-storage:
             account:
                 access:
                     key:
-                        id: YCAJEEieFyvCfCbvr6uotiKbB
+                        id: ${APP_YANDEX_CLOUD_STORAGE_ACCOUNT_ACCESS_KEY}
                 secret:
-                    key: YCPcYcBE8_OYMouCDjRrQAO2S5k824JPrzFuseSu
+                    key: ${APP_YANDEX_CLOUD_STORAGE_ACCOUNT_SECRET}
             endpoint: https://storage.yandexcloud.net
-            bucket: danver-messenger-service-storage
+            bucket: ${APP_S3_STORAGE_BUCKET_NAME}
     disk:
         service:
-            access-token: y0_AgAAAAATPNeCAArssAAAAADzlcr_axB4ifd_Rr-lBh1U4dvRDNt6xo4
+            access-token: ${APP_YANDEX_DISK_SERVICE_ACCESS_TOKEN}
             refresh-token: aaa

@@ -20,4 +20,6 @@ public class Constants {
 
     public static final String REDIS_USERS_PERMISSIONS = "messenger-service:users:permissions";
 
+    public static final String X_REQUEST_RESOURCE_OBJECT = "X-request-resource-object";
+
 }
