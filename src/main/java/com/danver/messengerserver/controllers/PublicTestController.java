@@ -49,16 +49,16 @@ public class PublicTestController {
 
         List<Map<String, Object>> usersChats = jdbcTemplate.queryForList("""
             select
-                "userid",
-                jsonb_agg("chatid")::text "chats"
+                "userId",
+                jsonb_agg("chatId")::text "chats"
             from
                 "userschats"
             group by
-                "userid"
+                "userId"
         """);
         Map<String, String> usersChatsRedis = new HashMap<>();
         for (Map<String, Object> m: usersChats) {
-            usersChatsRedis.put(Long.toString((Long) m.get("userid")), (String) m.get("chats"));
+            usersChatsRedis.put(Long.toString((Long) m.get("userId")), (String) m.get("chats"));
         }
 
         HashOperations<String, String, String> hashOps = redisTemplate.opsForHash();

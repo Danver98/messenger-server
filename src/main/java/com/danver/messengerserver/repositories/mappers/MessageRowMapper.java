@@ -32,6 +32,7 @@ public class MessageRowMapper implements RowMapper<Message> {
         Object value = rs.getObject("value");
         message.setData(new MessageData(valueType != null ? MessageDataType.get(valueType.byteValue()) : null, value));
         message.setType(type != null ? Message.MessageType.get(type.byteValue()) : null);
+        message.setRead(rs.getBoolean("read"));
         return message;
     }
 }

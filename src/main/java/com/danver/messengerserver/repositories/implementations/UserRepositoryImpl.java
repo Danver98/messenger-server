@@ -36,7 +36,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User createUser(User user) {
-        String query = "INSERT INTO Users (name, surname, email, salt, passwordHash, avatarUrl)" +
+        String query = "INSERT INTO Users (name, surname, email, salt, \"passwordHash\", \"avatarUrl\")" +
                 " VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
         long id = jdbcTemplate.queryForObject(query, Long.class, user.getName(), user.getSurname(),
                 user.getEmail(), user.getSalt(), user.getPassword(), user.getAvatarUrl());
@@ -46,7 +46,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User getUser(long id) {
-        String query = "SELECT id, name, surname, email, avatarUrl FROM Users WHERE id = ?";
+        String query = "SELECT id, name, surname, email, \"avatarUrl\" FROM \"Users\" WHERE id = ?";
         try {
             return jdbcTemplate.queryForObject(query, new UserDTORowMapper(), id);
         } catch (EmptyResultDataAccessException e) {
@@ -57,7 +57,7 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public User getUserByEmail(String email) {
         log.info("Getting user with login '" + email + "' from database");
-        String query = "SELECT * FROM Users WHERE email = ?";
+        String query = "SELECT * FROM \"Users\" WHERE email = ?";
         // We use UserRowMapper here to process password and salt
         try {
             return jdbcTemplate.queryForObject(query, new UserRowMapper(), email);
@@ -75,7 +75,7 @@ public class UserRepositoryImpl implements UserRepository {
                     name = :name,
                     surname = :surname,
                     email = :email,
-                    avatarUrl = :avatarUrl
+                    "avatarUrl" = :avatarUrl
                WHERE
                     id = :id
         """;
@@ -90,7 +90,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void deleteUser(long id) {
-        String query = "DELETE FROM Users WHERE id = ?";
+        String query = "DELETE FROM \"Users\" WHERE id = ?";
         jdbcTemplate.update(query, id);
     }
 
@@ -120,10 +120,10 @@ public class UserRepositoryImpl implements UserRepository {
                 u.name,
                 u.surname,
                 u.email,
-                u.avatarUrl,
-                u.passwordhash
+                u."avatarUrl",
+                u."passwordHash"
             from
-                Users u
+                \"Users\" u
             where
                 case
                     when :id is null

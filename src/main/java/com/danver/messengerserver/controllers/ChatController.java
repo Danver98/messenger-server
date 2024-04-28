@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
@@ -71,6 +70,12 @@ public class ChatController {
         return chatService.getChats(dto);
     }
 
+    @PostMapping("/light-list")
+    @PreAuthorize("T(java.lang.Long).toString(#dto.getUserId()) == authentication.name")
+    List<Chat> lightList(@RequestBody ChatPagingDTO dto) {
+        return chatService.getChatsLight(dto);
+    }
+
     @GetMapping("/{id}")
     Chat getChat(@RequestParam long userId, @PathVariable long id) {
         return chatService.getChat(id);
@@ -84,6 +89,11 @@ public class ChatController {
     @PutMapping("/{id}")
     void updateChat(@RequestParam long userId, @RequestBody Chat chat) {
         chatService.updateChat(chat);
+    }
+
+    @PatchMapping("/{id}/last-read-msg")
+    void updateLastReadMsg(@RequestBody long chatId, @RequestBody long userId, @RequestBody String messageId) {
+        chatService.updateLastReadMsg(chatId, userId, messageId);
     }
 
     @DeleteMapping("/{id}")
@@ -231,7 +241,6 @@ public class ChatController {
     @MessageMapping("/chat/add-user")
     public void addUser(@Payload MessageDTO messageDTO) {
     }
-
 
     @Scheduled(fixedRate = 60000)
     void clearActiveChats() {

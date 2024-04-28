@@ -90,7 +90,7 @@ public class ChatsAuthorizationFilter extends OncePerRequestFilter {
         }
         String permission = PermissionType.Chat.DEFAULT.getValue();
         int resourceType = ResourceType.CHAT.getValue();
-        if (methodName.equals("POST") && path.equals("/chats/")) {
+        if (methodName.equals("POST") && (path.equals("/chats/") || path.equals("/chats/light-list"))) {
             /*
                 LIST chats
                 Checked directly in controller

@@ -12,6 +12,10 @@ public interface ChatRepository {
 
     List<Chat> getChats(long userId, Instant threshold, Long chatIdThreshold, int direction, Integer count);
 
+    default List<Chat> getChatsLight(long userId) {
+        return null;
+    }
+
     Chat getChat(long id);
 
     default List<User> getParticipants(long id) {
@@ -21,6 +25,10 @@ public interface ChatRepository {
     List<Chat> getChatsWithParticipants(long userId);
 
     void updateChat(Chat chat);
+
+    default void updateLastReadMsg(long chatId, long userId, String messageId) {
+
+    };
 
     void deleteChat(long id);
 

@@ -23,6 +23,10 @@ public class Message {
     private Instant time;
     private MessageData data;
     private MessageType type;
+    /**
+     * Whether this message's been read by certain user
+     */
+    private boolean read;
 
     public enum MessageType {
         CREATION(1),

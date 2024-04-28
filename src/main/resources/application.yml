@@ -61,10 +61,21 @@ spring:
         username: ${APP_DB_USERNAME}
     jpa:
         show-sql: true
+        hibernate:
+            ddl-auto: none
     sql:
         init:
             mode: always
             schema-locations: classpath*:database/schema.sql
+    # Flyway migration tool properties
+    flyway:
+        enabled: false
+        driverClassName: org.postgresql.Driver
+        url: jdbc:postgresql://${APP_DB_HOST}:${APP_DB_PORT}/${APP_DB_NAME}
+        username: ${APP_DB_USERNAME}
+        password: ${APP_DB_PASSWORD}
+        schemas: migrations
+        locations: classpath:/db/migration/postgresql
 
 # S3
 s3:

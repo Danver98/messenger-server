@@ -39,6 +39,11 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    public List<Chat> getChatsLight(ChatPagingDTO dto) {
+        return chatRepository.getChatsLight(dto.getUserId());
+    }
+
+    @Override
     public Chat getChat(long id) {
         return chatRepository.getChat(id);
     }
@@ -51,6 +56,11 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public void updateChat(Chat chat) {
         chatRepository.updateChat(chat);
+    }
+
+    @Override
+    public void updateLastReadMsg(long chatId, long userId, String messageId) {
+        chatRepository.updateLastReadMsg(chatId, userId, messageId);
     }
 
     @Override

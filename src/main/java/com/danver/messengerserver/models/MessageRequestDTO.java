@@ -16,6 +16,7 @@ import java.util.Map;
 public class MessageRequestDTO {
 
     private Long chatId;
+    private Long userId;
     private Instant time;
     private String messageId;
     private Direction direction;

@@ -1,12 +1,14 @@
 package com.danver.messengerserver.models;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public class Chat {
     @Getter
@@ -35,6 +37,13 @@ public class Chat {
     @Getter
     @Setter
     private boolean draft;
+    @Getter
+    @Setter
+    private String lastReadMsgId;
+    @Getter
+    @Setter
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private int unreadMsgCount;
 
     public Chat() {
 

@@ -18,11 +18,19 @@ public interface ChatService {
 
      List<Chat> getChats(ChatPagingDTO dto);
 
+     default List<Chat> getChatsLight(ChatPagingDTO dto) {
+          return this.getChats(dto);
+     }
+
      Chat getChat(long id);
 
      List<User> getParticipants(long id);
 
      void updateChat(Chat chat);
+
+     default void updateLastReadMsg(long chatId, long userId, String messageId) {
+
+     }
 
      void deleteChat(long id);
 

@@ -27,7 +27,7 @@ END;
 '
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER add_user_to_all_users_chat_trg AFTER INSERT ON Users
+CREATE OR REPLACE TRIGGER add_user_to_all_users_chat_trg AFTER INSERT ON "Users"
     FOR EACH ROW EXECUTE PROCEDURE add_user_to_all_users_chat();
 
 
@@ -42,29 +42,13 @@ CREATE TABLE IF NOT EXISTS "Chats"
     "draft" boolean default true
 );
 -- Should we create index on LastChanged if it's changed often?
---Create type
-DO
-'
-    DECLARE
-    BEGIN
-        CREATE TYPE message_type AS ENUM (
-            ''DEFAULT'',
-            ''TEXT'',
-            ''IMAGE'',
-            ''VIDEO'',
-            ''FILE''
-            );
-    EXCEPTION
-        WHEN duplicate_object THEN null;
-    END' LANGUAGE PLPGSQL;
-
 
 -- Message table
 CREATE TABLE IF NOT EXISTS "Messages"
 (
     "id"           uuid PRIMARY KEY,
-    "chatId"       bigint    NOT NULL references Chats (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    "authorId"     bigint    NOT NULL references Users (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    "chatId"       bigint    NOT NULL references "Chats" (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    "authorId"     bigint    NOT NULL references "Users" (id) ON DELETE CASCADE ON UPDATE CASCADE,
     "lastChanged" timestamp with time zone NOT NULL,
     "type"        smallint,
     "value_type"  smallint,
@@ -76,7 +60,7 @@ CREATE OR REPLACE FUNCTION update_chat_last_changed_column() RETURNS TRIGGER AS 
 BEGIN
     IF (TG_OP = ''INSERT'') OR (TG_OP = ''UPDATE'') THEN
         UPDATE
-            Chats
+            "Chats"
         SET
             "lastChanged" = NEW."lastChanged",
             draft = null
@@ -85,7 +69,7 @@ BEGIN
         RETURN NEW;
     ELSE IF (TG_OP = ''DELETE'') THEN
         UPDATE
-            Chats
+            "Chats"
         SET
             "lastChanged" = OLD."lastChanged"
             --draft = OLD.draft
@@ -97,15 +81,16 @@ BEGIN
 END;
 'LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER update_chat_last_changed_column_trg AFTER INSERT OR UPDATE OR DELETE on Messages
+CREATE OR REPLACE TRIGGER update_chat_last_changed_column_trg AFTER INSERT OR UPDATE OR DELETE on "Messages"
     FOR EACH ROW EXECUTE PROCEDURE update_chat_last_changed_column();
 
 
 -- UsersChats table
 CREATE TABLE IF NOT EXISTS "UsersChats"
 (
-    "userId" bigint NOT NULL references Users (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    "chatId" bigint NOT NULL references Chats (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    "userId" bigint NOT NULL references "Users" (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    "chatId" bigint NOT NULL references "Chats" (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    "lastReadMsg" uuid references "Messages" (id) ON DELETE SET NULL ON UPDATE CASCADE,
     PRIMARY KEY ("userId", "chatId")
 );
 
@@ -113,7 +98,7 @@ CREATE TABLE IF NOT EXISTS "UsersChats"
 CREATE TABLE IF NOT EXISTS "UsersPermissions"
 (
     "id" bigserial PRIMARY KEY,
-    "user" bigint NOT NULL REFERENCES Users (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    "user" bigint NOT NULL REFERENCES "Users" (id) ON DELETE CASCADE ON UPDATE CASCADE,
     "resource" bigint, -- references different objects from different tables
     "resource_type" smallint NOT NULL,
     "permissions" text[],

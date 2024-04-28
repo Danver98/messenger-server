@@ -3,12 +3,10 @@ package com.danver.messengerserver.repositories.implementations;
 import com.danver.messengerserver.models.Chat;
 import com.danver.messengerserver.models.util.Direction;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
+import com.danver.messengerserver.repositories.mappers.ChatListLightRowMapper;
 import com.danver.messengerserver.repositories.mappers.ChatListRowMapper;
 import com.danver.messengerserver.repositories.mappers.ChatRowMapper;
 import com.danver.messengerserver.utils.Constants;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -27,7 +25,6 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
@@ -57,7 +54,7 @@ public class ChatRepositoryImpl implements ChatRepository {
     public Chat createChat(Chat chat) {
         String query = """
         insert into
-            Chats (name, "avatarUrl", private, draft)
+            "Chats" (name, "avatarUrl", private, draft)
         values
             (:name, :avatar, :private, true)
         on conflict
@@ -79,7 +76,7 @@ public class ChatRepositoryImpl implements ChatRepository {
             params.addValue("users", userIds, Types.ARRAY);
             query= """
             insert into
-                UsersChats (chatId, userId)
+                "UsersChats" ("chatId", "userId")
             select
                 :chatId, unnest(:users)
         """;
@@ -118,43 +115,43 @@ public class ChatRepositoryImpl implements ChatRepository {
                         author.surname "authorSurname",
                         author."avatarUrl" "authorAvatarUrl"
                     from
-                        Messages m
+                        "Messages" m
                     join (
                         select
                             m."chatId",
                             max(m."lastChanged") "lastChanged"
                         from
-                            Messages m
+                            "Messages" m
                         group by
                             m."chatId"
                     ) max_data
                         on m."chatId" = max_data."chatId"
                         and m."lastChanged" = max_data."lastChanged"
-                    join Users author
+                    join "Users" author
                         on m."authorId" = author.id
                 ), private_chats as (
                     select
                         array_agg(c.id) "ids"
                     from
-                        Chats c
+                        "Chats" c
                     join
-                        UsersChats uc
+                        "UsersChats" uc
                     on
-                        uc.chatId = c.id
+                        uc."chatId" = c.id
                     WHERE
                         c.private is true
-                        and uc.userId = :userId
+                        and uc."userId" = :userId
                 ), private_chats_names as (
                     select
-                        uc.chatId "id",
+                        uc."chatId" "id",
                         u.name || ' ' || u.surname "name"
                     from
-                        UsersChats uc
-                    join Users u
-                        on uc.userId = u.id
-                        and uc.userId is distinct from :userId
+                        "UsersChats" uc
+                    join "Users" u
+                        on uc."userId" = u.id
+                        and uc."userId" is distinct from :userId
                     where
-                        uc.chatId = any((select ids from private_chats)::bigint[])
+                        uc."chatId" = any((select ids from private_chats)::bigint[])
                 )
                 select
                     c.id,
@@ -178,13 +175,30 @@ public class ChatRepositoryImpl implements ChatRepository {
                     last_msg."authorId" "lastMsg.authorId",
                     last_msg."authorName" "lastMsg.authorName",
                     last_msg."authorSurname" "lastMsg.authorSurname",
-                    last_msg."authorAvatarUrl" "lastMsg.authorAvatarUrl"
+                    last_msg."authorAvatarUrl" "lastMsg.authorAvatarUrl",
+                    -- last read message by user
+                    uc."lastReadMsg" "lastReadMsgId",
+                    (
+                        select
+                            count(*)
+                        from
+                            "Messages"
+                        where
+                            "lastChanged" > (
+                                select
+                                    m."lastChanged"
+                                from
+                                    "Messages" m
+                                where
+                                    m."id" = uc."lastReadMsg"
+                            )
+                    ) "unreadMsgCount"
                 from
-                    Chats c
+                    "Chats" c
                 join
-                    UsersChats uc
+                    "UsersChats" uc
                 on
-                    uc.chatId = c.id
+                    uc."chatId" = c.id
                 left join private_chats_names pcn
                     on c.id = pcn.id
                     and c.private is true
@@ -198,7 +212,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                 ) last_msg
                 ON TRUE
                 WHERE
-                    uc.userId = :userId
+                    uc."userId" = :userId
                     and c.draft is not true
                 AND
                     CASE
@@ -222,6 +236,31 @@ public class ChatRepositoryImpl implements ChatRepository {
 
     @Override
     @Transactional
+    public List<Chat> getChatsLight(long userId) {
+        MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+        namedParameters.addValue("userId", userId);
+        String query = """
+                select
+                    c.id,
+                    c.private,
+                    c.draft
+                from
+                    "Chats" c
+                join
+                    "UsersChats" uc
+                on
+                    uc."chatId" = c.id
+                WHERE
+                    uc."userId" = :userId
+                    and c.draft is not true
+                ORDER BY
+                    c."lastChanged" DESC
+                """;
+        return namedParameterJdbcTemplate.query(query, namedParameters, new ChatListLightRowMapper());
+    }
+
+    @Override
+    @Transactional
     public List<Chat> getChatsWithParticipants(long userId) {
         return null;
     }
@@ -233,16 +272,16 @@ public class ChatRepositoryImpl implements ChatRepository {
             with participants as (
                 select
                     c.id "chatId",
-                    array_agg(distinct uc.userid) "participants",
+                    array_agg(distinct uc."userId") "participants",
                     array_agg(u.name || ' ' || u.surname) "user_names"
                 from
-                    Chats c
-                join UsersChats uc
+                    "Chats" c
+                join "UsersChats" uc
                     on c.id = :chatId
-                    and c.id = uc.chatId
+                    and c.id = uc."chatId"
                     and c.private is true
-                join Users u
-                    on uc.userId = u.id
+                join "Users" u
+                    on uc."userId" = u.id
                 group by
                     c.id
             )
@@ -256,7 +295,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                 end "participants",
                 array_to_string(pts."user_names", '|') "user_names"
             FROM
-                Chats c
+                "Chats" c
             left join participants pts
                 on c."id" = pts."chatId"
             WHERE
@@ -274,9 +313,9 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public void updateChat(Chat chat) {
-        String query = "UPDATE Chats SET name = ?, \"avatarUrl\" = ?, private = ? WHERE id = ?";
+        String query = "UPDATE \"Chats\" SET name = ?, \"avatarUrl\" = ?, private = ? WHERE id = ?";
         jdbcTemplate.update(query, chat.getName(), chat.getAvatarUrl(), chat.getId(), chat.isPrivate());
-        query = "DELETE FROM UsersChats WHERE \"chatId\" = ?";
+        query = "DELETE FROM \"UsersChats\" WHERE \"chatId\" = ?";
         jdbcTemplate.update(query, chat.getId());
 /*        query = "INSERT INTO UsersChats VALUES (?, ?)";
         List<Object[]> usersChats = chat.getParticipants().stream()
@@ -285,9 +324,27 @@ public class ChatRepositoryImpl implements ChatRepository {
     }
 
     @Override
+    public void updateLastReadMsg(long chatId, long userId, String messageId) {
+        String query = """
+            update
+                "UsersChats"
+            set
+                "lastReadMsg" = :messageId::uuid
+            where
+                "chatId" = :chatId
+                and "userId" = :userId
+        """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("chatId", chatId, Types.BIGINT);
+        params.addValue("userId", userId, Types.BIGINT);
+        params.addValue("messageId", messageId, Types.VARCHAR);
+        this.namedParameterJdbcTemplate.update(query, params);
+    }
+
+    @Override
     @Transactional
     public void deleteChat(long id) {
-        String query = "DELETE FROM Chats WHERE id = ?";
+        String query = "DELETE FROM \"Chats\" WHERE id = ?";
         jdbcTemplate.update(query, id);
     }
 
@@ -298,25 +355,25 @@ public class ChatRepositoryImpl implements ChatRepository {
         String query = """
             with common_chats as (
                 select
-                    chatId
+                    "chatId"
                 from
-                    UsersChats
+                    "UsersChats"
                 where
-                    userId is not distinct from :first
+                    "userId" is not distinct from :first
                 
                 intersect
                 
                 select
-                    chatId
+                    "chatId"
                 from
-                    UsersChats
+                    "UsersChats"
                 where
-                    userId is not distinct from :second
+                    "userId" is not distinct from :second
             )
             select
                 1
             from
-                Chats c
+                "Chats" c
             where
                 c.private is true
                 and c.id = any ((select array_agg(chatId) from common_chats )::bigint[])
@@ -348,7 +405,7 @@ public class ChatRepositoryImpl implements ChatRepository {
         namedParameters.addValue("users", users);
         String query= """
             insert into
-                "UsersChats" (chatId, userId)
+                "UsersChats" ("chatId", "userId")
             select
                 :chatId, unnest(:users)
         """;
@@ -375,9 +432,10 @@ public class ChatRepositoryImpl implements ChatRepository {
                 select distinct
                     "chatId"
                 from
-                    "usersChats"
+                    "UsersChats"
                 where
-                    "userid" = ?
+                    "userId" = ?
         """, Long.class, userId);
     }
+
 }
