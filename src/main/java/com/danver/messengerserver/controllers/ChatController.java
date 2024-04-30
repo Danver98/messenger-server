@@ -78,7 +78,7 @@ public class ChatController {
 
     @GetMapping("/{id}")
     Chat getChat(@RequestParam long userId, @PathVariable long id) {
-        return chatService.getChat(id);
+        return chatService.getChat(id, userId);
     }
 
     @PostMapping("/create")

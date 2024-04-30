@@ -82,7 +82,7 @@ public class ChatRepositoryImpl implements ChatRepository {
         """;
             namedParameterJdbcTemplate.update(query, params);
         }
-        return this.getChat(id);
+        return this.getChat(id, null);
     }
 
     @Override
@@ -184,7 +184,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                         from
                             "Messages"
                         where
-                            "lastChanged" > (
+                            "lastChanged" >= (
                                 select
                                     m."lastChanged"
                                 from
@@ -192,6 +192,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                                 where
                                     m."id" = uc."lastReadMsg"
                             )
+                            and "Messages"."id" is distinct from uc."lastReadMsg"
                     ) "unreadMsgCount"
                 from
                     "Chats" c
@@ -267,7 +268,7 @@ public class ChatRepositoryImpl implements ChatRepository {
 
     @Override
     @Transactional
-    public Chat getChat(long id) {
+    public Chat getChat(long id, Long userId) {
         String query = """
             with participants as (
                 select
@@ -293,16 +294,21 @@ public class ChatRepositoryImpl implements ChatRepository {
                     else
                         null::bigint[]
                 end "participants",
-                array_to_string(pts."user_names", '|') "user_names"
+                array_to_string(pts."user_names", '|') "user_names",
+                uc."lastReadMsg"
             FROM
                 "Chats" c
             left join participants pts
                 on c."id" = pts."chatId"
+            left join "UsersChats" uc
+                on c."id" = uc."chatId"
+                and uc."userId" = :userId
             WHERE
                 id = :chatId
         """;
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("chatId", id, Types.BIGINT);
+        namedParameters.addValue("userId", userId, Types.BIGINT);
         try {
             return namedParameterJdbcTemplate.queryForObject(query, namedParameters, new ChatRowMapper());
         } catch (EmptyResultDataAccessException e) {
@@ -385,14 +391,14 @@ public class ChatRepositoryImpl implements ChatRepository {
         namedParameters.addValue("second", userIds[1], Types.BIGINT);
         Long chat = namedParameterJdbcTemplate.queryForObject(query, namedParameters, Long.class);
         if (chat != null) {
-            return this.getChat(chat);
+            return this.getChat(chat, null);
         }
         return null;
     }
 
     @Override
     public Chat getOrCreate(Chat chat) {
-        Chat existing = this.getChat(chat.getId());
+        Chat existing = this.getChat(chat.getId(), null);
         if (existing != null) return existing;
         return this.createChat(chat);
     }

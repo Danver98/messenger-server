@@ -22,7 +22,7 @@ public interface ChatService {
           return this.getChats(dto);
      }
 
-     Chat getChat(long id);
+     Chat getChat(long id, long userId);
 
      List<User> getParticipants(long id);
 

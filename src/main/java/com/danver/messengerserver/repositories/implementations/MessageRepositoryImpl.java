@@ -42,7 +42,7 @@ public class MessageRepositoryImpl implements MessageRepository {
             // User's just opened chat, first fetch's needed
             return this.getMessagesFirst(dto);
         }
-        logger.info("Getting messages for user with id: " + " for chat with id" + dto.getChatId() + "using paging");
+        logger.info("Getting messages for user with id: " + " for chat with id " + dto.getChatId() + " using paging");
         MessageRequestDtoProperTime dtoProper = new MessageRequestDtoProperTime(
                 dto.getChatId(), dto.getUserId(), dto.getTime() == null ? null : dto.getTime().atOffset(ZoneOffset.UTC),
                 dto.getMessageId(), dto.getDirection(), dto.getCount());
@@ -88,7 +88,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     public List<Message> getMessagesFirst(MessageRequestDTO dto) {
-        logger.info("Getting messages for user with id: " + dto.getUserId() + " for chat with id" + dto.getChatId() + "using paging");
+        logger.info("Getting messages for user with id: " + dto.getUserId() + " for chat with id " + dto.getChatId() + " using paging");
         MessageRequestDtoProperTime dtoProper = new MessageRequestDtoProperTime(
                 dto.getChatId(), dto.getUserId(), dto.getTime() == null ? null : dto.getTime().atOffset(ZoneOffset.UTC),
                 dto.getMessageId(), dto.getDirection(), dto.getCount());
@@ -206,7 +206,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         logger.info("Writing message with id: " + message.getId() + " id to database");
         String query = """
                     insert into
-                        Messages (id, "chatId", "authorId", "lastChanged", value, type, value_type)
+                        "Messages" (id, "chatId", "authorId", "lastChanged", value, type, value_type)
                     values
                         (?, ?, ?, ?, ?, ?, ?)
                 """;

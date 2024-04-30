@@ -16,7 +16,7 @@ public interface ChatRepository {
         return null;
     }
 
-    Chat getChat(long id);
+    Chat getChat(long id, Long userId);
 
     default List<User> getParticipants(long id) {
         return null;

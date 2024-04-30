@@ -86,6 +86,7 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         }
         return List.of(permissionsStr.replace("{", "")
                 .replace("}", "")
+                .replace("\"", "")
                 .split(","));
     }
 

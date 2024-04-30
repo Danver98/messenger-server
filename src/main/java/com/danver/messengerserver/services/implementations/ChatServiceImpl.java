@@ -44,8 +44,8 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public Chat getChat(long id) {
-        return chatRepository.getChat(id);
+    public Chat getChat(long id, long userId) {
+        return chatRepository.getChat(id, userId);
     }
 
     @Override
