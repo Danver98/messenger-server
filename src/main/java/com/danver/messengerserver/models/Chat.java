@@ -39,11 +39,11 @@ public class Chat {
     private boolean draft;
     @Getter
     @Setter
-    private String lastReadMsgId;
-    @Getter
-    @Setter
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private int unreadMsgCount;
+    @Getter
+    @Setter
+    private Message lastReadMsg;
 
     public Chat() {
 

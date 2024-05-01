@@ -295,7 +295,8 @@ public class ChatRepositoryImpl implements ChatRepository {
                         null::bigint[]
                 end "participants",
                 array_to_string(pts."user_names", '|') "user_names",
-                uc."lastReadMsg"
+                uc."lastReadMsg",
+                m."lastChanged" "message.lastChanged"
             FROM
                 "Chats" c
             left join participants pts
@@ -303,8 +304,10 @@ public class ChatRepositoryImpl implements ChatRepository {
             left join "UsersChats" uc
                 on c."id" = uc."chatId"
                 and uc."userId" = :userId
+            left join "Messages" m
+                on uc."lastReadMsg" = m."id"
             WHERE
-                id = :chatId
+                c."id" = :chatId
         """;
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("chatId", id, Types.BIGINT);

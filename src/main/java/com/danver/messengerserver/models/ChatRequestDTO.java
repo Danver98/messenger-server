@@ -9,5 +9,7 @@ import lombok.extern.jackson.Jacksonized;
 @Jacksonized
 public class ChatRequestDTO {
     long chatId;
+    long userId;
+    String messageId;
     long[] users;
 }

@@ -7,7 +7,7 @@ application:
 
 # JWT
 jwt:
-    exp-in-millis: 3600000
+    exp-in-millis: 7200000
     iss: ${APP_JWT_ISSUER}
     secret: ${APP_JWT_BASE_SECRET}
     sign-alg: HS256

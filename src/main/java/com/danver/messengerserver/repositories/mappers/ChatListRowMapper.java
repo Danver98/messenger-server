@@ -45,7 +45,6 @@ public class ChatListRowMapper implements RowMapper<Chat> {
         lastMessage.setType(type != null ? Message.MessageType.get(type.byteValue()) : null);
 
         chat.setLastMessage(lastMessage);
-        chat.setLastReadMsgId(rs.getString("lastReadMsgId"));
         chat.setUnreadMsgCount(rs.getInt("unreadMsgCount"));
         return chat;
     }

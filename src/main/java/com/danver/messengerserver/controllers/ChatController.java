@@ -92,8 +92,9 @@ public class ChatController {
     }
 
     @PatchMapping("/{id}/last-read-msg")
-    void updateLastReadMsg(@RequestBody long chatId, @RequestBody long userId, @RequestBody String messageId) {
-        chatService.updateLastReadMsg(chatId, userId, messageId);
+    void updateLastReadMsg(@RequestBody ChatRequestDTO dto) {
+        //@RequestBody long chatId, @RequestBody long userId, @RequestBody String messageId
+        chatService.updateLastReadMsg(dto.getChatId(), dto.getUserId(), dto.getMessageId());
     }
 
     @DeleteMapping("/{id}")
