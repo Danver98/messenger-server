@@ -33,9 +33,12 @@ public class ChatRowMapper implements RowMapper<Chat> {
             chat.setParticipants(List.of(lst));
         }
         OffsetDateTime msgCreated = rs.getObject("message.lastChanged", OffsetDateTime.class);
-        Message lastReadMsg = Message.builder().id(rs.getString("lastReadMsg"))
-                        .time(msgCreated.toInstant())
-                                .build();
+        Message lastReadMsg = null;
+        if (rs.getString("lastReadMsg") != null) {
+            lastReadMsg = Message.builder().id(rs.getString("lastReadMsg"))
+                    .time(msgCreated.toInstant())
+                    .build();
+        }
         chat.setLastReadMsg(lastReadMsg);
         return chat;
     }
