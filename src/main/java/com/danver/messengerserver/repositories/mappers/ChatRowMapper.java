@@ -40,6 +40,7 @@ public class ChatRowMapper implements RowMapper<Chat> {
                     .build();
         }
         chat.setLastReadMsg(lastReadMsg);
+        chat.setUnreadMsgCount(rs.getInt("unreadMsgCount"));
         return chat;
     }
 }

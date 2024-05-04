@@ -1,6 +1,5 @@
 package com.danver.messengerserver.filters;
 
-import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.services.permission.PermissionService;
 import com.danver.messengerserver.services.permission.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -184,14 +184,15 @@ public class ChatRepositoryImpl implements ChatRepository {
                         from
                             "Messages"
                         where
-                            "lastChanged" >= (
+                            "lastChanged" >= coalesce((
                                 select
                                     m."lastChanged"
                                 from
                                     "Messages" m
                                 where
                                     m."id" = uc."lastReadMsg"
-                            )
+                            ), to_timestamp(0))
+                            and "Messages"."chatId" = c."id"
                             and "Messages"."id" is distinct from uc."lastReadMsg"
                     ) "unreadMsgCount"
                 from
@@ -296,7 +297,24 @@ public class ChatRepositoryImpl implements ChatRepository {
                 end "participants",
                 array_to_string(pts."user_names", '|') "user_names",
                 uc."lastReadMsg",
-                m."lastChanged" "message.lastChanged"
+                m."lastChanged" "message.lastChanged",
+                (
+                    select
+                        count(*)
+                    from
+                        "Messages"
+                    where
+                        "lastChanged" >= coalesce((
+                            select
+                                m."lastChanged"
+                            from
+                                "Messages" _m
+                            where
+                                _m."id" = uc."lastReadMsg"
+                        ), to_timestamp(0))
+                        and "Messages"."chatId" = c."id"
+                        and "Messages"."id" is distinct from uc."lastReadMsg"
+                ) "unreadMsgCount"
             FROM
                 "Chats" c
             left join participants pts
