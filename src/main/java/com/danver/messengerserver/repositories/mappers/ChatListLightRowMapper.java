@@ -11,6 +11,7 @@ public class ChatListLightRowMapper implements RowMapper<Chat> {
     @Override
     public Chat mapRow(ResultSet rs, int rowNum) throws SQLException {
         Chat chat = new Chat();
+        chat.setId(rs.getLong("id"));
         chat.setPrivate(rs.getBoolean("private"));
         chat.setDraft(rs.getBoolean("draft"));
         return chat;
