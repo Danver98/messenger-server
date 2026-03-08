@@ -81,7 +81,7 @@ public class RedisCacheConfig implements CachingConfigurer {
         try {
             process = builder.start();
         } catch (IOException e) {
-            log.info("Couldn't start Redis server: " + e.getMessage());
+            log.info("Couldn't start Redis server: {}", e.getMessage());
         }
     }
 
@@ -94,7 +94,7 @@ public class RedisCacheConfig implements CachingConfigurer {
                 this.process.waitFor(5, TimeUnit.SECONDS);
                 this.process.destroy();
             } catch (InterruptedException e) {
-                log.info("Couldn't stop Redis server: " + e.getMessage());
+                log.info("Couldn't stop Redis server: {}", e.getMessage());
             }
         }
     }

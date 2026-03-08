@@ -2,30 +2,41 @@ package com.danver.messengerserver.services.permission;
 
 import com.danver.messengerserver.exceptions.CompletableFutureException;
 import com.danver.messengerserver.models.User;
+import com.danver.messengerserver.models.permission.Permission;
 import com.danver.messengerserver.utils.Constants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Repository;
+
+import javax.sql.DataSource;
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
 public class PermissionRepository implements IPermissionRepository<UserDetails, Long> {
     private final RedisTemplate<String, ?> redis;
     private final JdbcTemplate jdbcTemplate;
+    private final DataSource dataSource;
     private final static String PERMISSION_KEY = Constants.REDIS_USERS_PERMISSIONS;
 
-    public PermissionRepository(RedisTemplate<String, ?> redis, JdbcTemplate jdbcTemplate) {
+    public PermissionRepository(RedisTemplate<String, ?> redis, JdbcTemplate jdbcTemplate,
+                                DataSource dataSource) {
         this.redis = redis;
         this.jdbcTemplate = jdbcTemplate;
+        this.dataSource = dataSource;
     }
 
     @Override
@@ -118,13 +129,44 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         }
         permissions.add(permission);
         try {
-            String permissionsStr = "[ " + String.join(", ", permissions) + "]";
+            String permissionsStr = "[" + String.join(", ", permissions) + "]";
             hashOps.put(PERMISSION_KEY, key, permissionsStr);
         } catch (RedisConnectionFailureException ex) {
-            log.info("Couldn't connect to Redis server: " + ex.getMessage());
+            log.info("Couldn't connect to Redis server: {}", ex.getMessage());
             // TODO: send message to queue to write this later
             return -1;
         }
         return 0;
+    }
+
+    @Scheduled(fixedDelay = 180000)
+    public void updateRedisPermissions() {
+        JdbcTemplate template = new JdbcTemplate(this.dataSource);
+        template.setFetchSize(1000);
+            List<Permission> permissions = template.query("""
+            select
+                "id",
+                "user",
+                "resource",
+                "resource_type",
+                "permissions"
+             from
+                "UsersPermissions"
+        """, (RowMapper) (rs, rowNum) -> {
+            Array permissions1 = rs.getArray("permissions");
+            return new Permission(
+                    rs.getLong("id"),
+                    rs.getLong("user"),
+                    rs.getLong("resource"),
+                    rs.getShort("resource_type"),
+                    (String[]) permissions1.getArray()
+            );
+        });
+        var hashOps = this.redis.opsForHash();
+        Map<String, String> data = permissions.stream().collect(Collectors.toMap(
+                (p) -> String.valueOf(p.user()) + ':' + p.resource() + ':' + String.valueOf(p.resourceType()),
+                (p) -> "[" + String.join(", ", p.permissions()) + "]"
+        ));
+        hashOps.putAll(PERMISSION_KEY, data);
     }
 }

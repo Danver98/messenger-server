@@ -3,8 +3,8 @@ package com.danver.messengerserver.services.interfaces;
 
 import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.MessageRequestDTO;
+import org.springframework.security.access.AccessDeniedException;
 
-import java.time.Instant;
 import java.util.List;
 
 public interface MessageService {
@@ -18,4 +18,5 @@ public interface MessageService {
      */
     Message createMessage(Message message);
 
+    void deleteMessages(long userId, List<Message> messageIds) throws AccessDeniedException;
 }

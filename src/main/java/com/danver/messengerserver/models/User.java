@@ -16,6 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 public class User implements UserDetails {
     private long id;
     @JsonProperty("login")
+    @JsonAlias("email")
     private String email;
     //This field can store both raw password and hashed
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)

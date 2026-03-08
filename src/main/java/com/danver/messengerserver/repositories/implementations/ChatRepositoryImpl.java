@@ -1,6 +1,7 @@
 package com.danver.messengerserver.repositories.implementations;
 
 import com.danver.messengerserver.models.Chat;
+import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.util.Direction;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.repositories.mappers.ChatListLightRowMapper;
@@ -369,6 +370,44 @@ public class ChatRepositoryImpl implements ChatRepository {
     }
 
     @Override
+    public void updateLastReadMsgForDeleted(List<Message> messages) {
+        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(Objects.requireNonNull(this.jdbcTemplate.getDataSource()));
+        String query = """
+                with data as (
+                    select distinct on (uc."userId")
+                        uc."userId",
+                        newLastRead."id" "newLastRead"
+                    from
+                        "UsersChats" uc
+                    join "Messages" msg
+                        on uc."lastReadMsg" = msg."id"
+                    left join "Messages" newLastRead
+                        on newLastRead."lastChanged" <= msg."lastChanged"
+                        and newLastRead."id" != msg."id"
+                    where
+                        uc."lastReadMsg"::text = any(:ids)
+                        and uc."chatId" = :chatId
+                        and newLastRead.id::text != all(:ids)
+                    order by
+                        uc."userId",
+                        newLastRead."lastChanged" desc
+                )
+                update
+                    "UsersChats"
+                set
+                    "lastReadMsg" = data."newLastRead"
+                from
+                    data
+                where
+                    "userId" = data."userId"
+            """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("chatId", messages.get(0).getChatId());
+        params.addValue("ids", messages.stream().map(Message::getId).toArray());
+        jdbcTemplate.update(query, namedParameterJdbcTemplate);
+    }
+
+    @Override
     @Transactional
     public void deleteChat(long id) {
         String query = "DELETE FROM \"Chats\" WHERE id = ?";
@@ -439,9 +478,20 @@ public class ChatRepositoryImpl implements ChatRepository {
         jdbcTemplate.update(query, namedParameters);
     }
 
+    @Override
+    public Chat getAllUsersChat() {
+        Long allChatId = this.jdbcTemplate.queryForObject("""
+                    select all_users_chat_id()
+                """, Long.class);
+        if (allChatId == null) {
+            return null;
+        }
+        return this.getChat(allChatId, null);
+    }
+
     @Async
     public void addParticipantsToRedisAsync(long chatId, long[] users) {
-        log.info("Executing addParticipantsToRedisAsync method - " + Thread.currentThread().getName());
+        log.info("Executing addParticipantsToRedisAsync method - {}", Thread.currentThread().getName());
         HashOperations<String, String, String> hashOps = redisTemplate.opsForHash();
         List<String> values = hashOps.multiGet(Constants.REDIS_USERS_PERMISSIONS, Arrays.stream(users).mapToObj(String::valueOf).toList());
         int i = 0;

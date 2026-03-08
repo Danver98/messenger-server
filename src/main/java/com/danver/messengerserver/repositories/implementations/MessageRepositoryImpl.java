@@ -1,6 +1,5 @@
 package com.danver.messengerserver.repositories.implementations;
 
-import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.MessageRequestDTO;
 import com.danver.messengerserver.models.util.Direction;
@@ -16,9 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Repository
 public class MessageRepositoryImpl implements MessageRepository {
@@ -28,7 +25,7 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(MessageRepositoryImpl.class.getName());
     private final JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -42,7 +39,7 @@ public class MessageRepositoryImpl implements MessageRepository {
             // User's just opened chat, first fetch's needed
             return this.getMessagesFirst(dto);
         }
-        logger.info("Getting messages for user with id: " + " for chat with id " + dto.getChatId() + " using paging");
+        logger.info("Getting messages for user with id:  for chat with id {} using paging", dto.getChatId());
         MessageRequestDtoProperTime dtoProper = new MessageRequestDtoProperTime(
                 dto.getChatId(), dto.getUserId(), dto.getTime() == null ? null : dto.getTime().atOffset(ZoneOffset.UTC),
                 dto.getMessageId(), dto.getDirection(), dto.getCount());
@@ -88,7 +85,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     public List<Message> getMessagesFirst(MessageRequestDTO dto) {
-        logger.info("Getting messages for user with id: " + dto.getUserId() + " for chat with id " + dto.getChatId() + " using paging");
+        logger.info("Getting messages for user with id: {} for chat with id {} using paging", dto.getUserId(), dto.getChatId());
         MessageRequestDtoProperTime dtoProper = new MessageRequestDtoProperTime(
                 dto.getChatId(), dto.getUserId(), dto.getTime() == null ? null : dto.getTime().atOffset(ZoneOffset.UTC),
                 dto.getMessageId(), dto.getDirection(), dto.getCount());
@@ -203,7 +200,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     @Override
     public void createMessage(Message message) {
         if (message == null) return;
-        logger.info("Writing message with id: " + message.getId() + " id to database");
+        logger.info("Writing message with id: {} id to database", message.getId());
         String query = """
                     insert into
                         "Messages" (id, "chatId", "authorId", "lastChanged", value, type, value_type)
@@ -219,5 +216,16 @@ public class MessageRepositoryImpl implements MessageRepository {
                 message.getType().ordinal() + 1,
                 message.getData().getType().ordinal() + 1
         );
+    }
+
+    @Override
+    public void deleteMessages(List<Message> messages) {
+        String query = """
+                delete from
+                    "Messages"
+                where
+                    "id" = any(?);
+                """;
+        jdbcTemplate.update(query, messages.stream().map(Message::getId).toArray());
     }
 }

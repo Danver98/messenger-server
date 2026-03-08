@@ -2,6 +2,7 @@ package com.danver.messengerserver.services.implementations;
 
 import com.danver.messengerserver.models.Chat;
 import com.danver.messengerserver.models.ChatPagingDTO;
+import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.services.interfaces.ChatService;
@@ -9,9 +10,14 @@ import com.danver.messengerserver.services.permission.PermissionService;
 import com.danver.messengerserver.services.permission.PermissionType;
 import com.danver.messengerserver.services.permission.ResourceType;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.filter.CharacterEncodingFilter;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class ChatServiceImpl implements ChatService {
@@ -19,10 +25,18 @@ public class ChatServiceImpl implements ChatService {
     private final ChatRepository chatRepository;
     private final PermissionService permissionService;
 
+    private final JdbcTemplate jdbcTemplate;
+
+    private final CharacterEncodingFilter characterEncodingFilter;
+
     @Autowired
-    public ChatServiceImpl(ChatRepository chatRepository, PermissionService permissionService) {
+    public ChatServiceImpl(ChatRepository chatRepository, PermissionService permissionService,
+                           JdbcTemplate jdbcTemplate,
+                           CharacterEncodingFilter characterEncodingFilter) {
         this.chatRepository = chatRepository;
         this.permissionService = permissionService;
+        this.jdbcTemplate = jdbcTemplate;
+        this.characterEncodingFilter = characterEncodingFilter;
     }
 
     @Override
@@ -64,6 +78,11 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    public void updateLastReadMsgForDeleted(List<Message> messages) {
+        chatRepository.updateLastReadMsgForDeleted(messages);
+    }
+
+    @Override
     public void deleteChat(long id) {
         chatRepository.deleteChat(id);
     }
@@ -79,5 +98,10 @@ public class ChatServiceImpl implements ChatService {
        for (long user: users) {
            permissionService.grantAuthority(user, chatId, ResourceType.CHAT.getValue(), PermissionType.Chat.DEFAULT.getValue());
        }
+    }
+
+    @Override
+    public Chat getAllUsersChat() {
+        return this.chatRepository.getAllUsersChat();
     }
 }

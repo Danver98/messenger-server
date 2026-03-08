@@ -39,10 +39,10 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        log.info("JwtTokenFilter:doFilterInternal(). RequestPath: " + request.getRequestURI());
-        log.info("JwtTokenFilter:shouldNotFilter(). getPathInfo: " + request.getPathInfo());
-        log.info("JwtTokenFilter:shouldNotFilter(). getServletPath: " + request.getServletPath());
-        log.info(("AUTHORIZATION header: " + request.getHeader(HttpHeaders.AUTHORIZATION)));
+        log.info("JwtTokenFilter:doFilterInternal(). RequestPath: {}", request.getRequestURI());
+        log.info("JwtTokenFilter:shouldNotFilter(). getPathInfo: {}", request.getPathInfo());
+        log.info("JwtTokenFilter:shouldNotFilter(). getServletPath: {}", request.getServletPath());
+        log.info("AUTHORIZATION header: {}", request.getHeader(HttpHeaders.AUTHORIZATION));
         log.info("=================");
         String token = jwtUtil.resolveToken(request);
         if (token == null || !jwtUtil.validateToken(token)) {

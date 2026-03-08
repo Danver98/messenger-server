@@ -6,6 +6,8 @@ import lombok.*;
 import lombok.extern.jackson.Jacksonized;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,4 +59,7 @@ public class Message {
         }
     }
 
+    public OffsetDateTime getTimeUTC() {
+        return this.getTime().atOffset(ZoneOffset.UTC);
+    }
 }

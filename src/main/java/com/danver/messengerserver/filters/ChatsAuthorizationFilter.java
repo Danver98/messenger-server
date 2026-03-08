@@ -54,10 +54,10 @@ public class ChatsAuthorizationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         if (!appAuthorizationEnabled) return true;
-        log.info("JwtTokenFilter:doFilterInternal(). RequestPath: " + request.getRequestURI());
-        log.info("JwtTokenFilter:shouldNotFilter(). getPathInfo: " + request.getPathInfo());
-        log.info("JwtTokenFilter:shouldNotFilter(). getServletPath: " + request.getServletPath());
-        log.info("JwtTokenFilter:shouldNotFilter(). request.getContextPath: " + request.getContextPath());
+        log.info("JwtTokenFilter:doFilterInternal(). RequestPath: {}", request.getRequestURI());
+        log.info("JwtTokenFilter:shouldNotFilter(). getPathInfo: {}", request.getPathInfo());
+        log.info("JwtTokenFilter:shouldNotFilter(). getServletPath: {}", request.getServletPath());
+        log.info("JwtTokenFilter:shouldNotFilter(). request.getContextPath: {}", request.getContextPath());
         String path = request.getServletPath();
         return !path.matches(".*/chats/.*");
     }

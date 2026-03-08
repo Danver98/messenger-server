@@ -2,6 +2,7 @@ package com.danver.messengerserver.configs;
 
 import com.danver.messengerserver.filters.ChatsAuthorizationFilter;
 import com.danver.messengerserver.filters.JwtTokenFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,7 @@ public class SecurityConfig {
             "/config/**",
             "/public/**"
     };
+
     @Autowired
     public SecurityConfig(JwtTokenFilter jwtTokenFilter, ChatsAuthorizationFilter chatsAuthorizationFilter) {
         this.jwtTokenFilter = jwtTokenFilter;
@@ -78,10 +80,23 @@ public class SecurityConfig {
                         .anyRequest()
                         .authenticated()
                 )
-                .headers( (headers) -> {
+                .headers((headers) -> {
                 })
                 .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class) // or addFilterAt - instead of some filter
                 .addFilterBefore(chatsAuthorizationFilter, AuthorizationFilter.class)
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                                // Custom authentication failure handler (implements AuthenticationEntryPoint).
+                                // Here we return 401 code instead of default 403
+                                (request, response, exception) -> {
+                                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, exception.getMessage());
+                                }
+                        )
+/*                        .accessDeniedHandler((request, response, exception) -> {
+                        // Custom authorization failure handler (implements AccessDeniedHandler).
+                        // Here we return 403 code
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN, exception.getMessage());
+                        })*/
+                )
                 .build();
     }
 }

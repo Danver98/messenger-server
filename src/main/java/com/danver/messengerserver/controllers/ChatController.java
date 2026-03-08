@@ -92,7 +92,8 @@ public class ChatController {
     }
 
     @PatchMapping("/{id}/last-read-msg")
-    void updateLastReadMsg(@RequestBody ChatRequestDTO dto) {
+    void updateLastReadMsg(@RequestBody ChatRequestDTO dto,
+                           @PathVariable("id") String id) {
         //@RequestBody long chatId, @RequestBody long userId, @RequestBody String messageId
         chatService.updateLastReadMsg(dto.getChatId(), dto.getUserId(), dto.getMessageId());
     }
@@ -215,6 +216,12 @@ public class ChatController {
                     destination,
                     dto
             );
+            // Send back message to the sender
+            messagingTemplate.convertAndSendToUser(
+                    Long.toString(dto.getMessage().getAuthor().getId()),
+                    destination,
+                    dto
+            );
             return new ResponseEntity<>(dto, HttpStatus.OK);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -245,7 +252,6 @@ public class ChatController {
 
     @Scheduled(fixedRate = 60000)
     void clearActiveChats() {
-        logger.info("ClearActiveChats task running: thread id - " + Thread.currentThread().getId() +
-                ", thread name - " + Thread.currentThread().getName());
+        logger.info("ClearActiveChats task running: thread id - {}, thread name - {}", Thread.currentThread().getId(), Thread.currentThread().getName());
     }
 }

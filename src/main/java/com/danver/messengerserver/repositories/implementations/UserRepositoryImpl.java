@@ -36,7 +36,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User createUser(User user) {
-        String query = "INSERT INTO Users (name, surname, email, salt, \"passwordHash\", \"avatarUrl\")" +
+        String query = "INSERT INTO \"Users\" (name, surname, email, salt, \"passwordHash\", \"avatarUrl\")" +
                 " VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
         long id = jdbcTemplate.queryForObject(query, Long.class, user.getName(), user.getSurname(),
                 user.getEmail(), user.getSalt(), user.getPassword(), user.getAvatarUrl());
@@ -56,7 +56,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User getUserByEmail(String email) {
-        log.info("Getting user with login '" + email + "' from database");
+        log.info("Getting user with login '{}' from database", email);
         String query = "SELECT * FROM \"Users\" WHERE email = ?";
         // We use UserRowMapper here to process password and salt
         try {
@@ -70,7 +70,7 @@ public class UserRepositoryImpl implements UserRepository {
     public void updateUser(User user) {
         String query = """
                UPDATE
-                    Users
+                    \"Users\"
                 SET
                     name = :name,
                     surname = :surname,

@@ -1,6 +1,7 @@
 package com.danver.messengerserver.repositories.interfaces;
 
 import com.danver.messengerserver.models.Chat;
+import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.User;
 
 import java.time.Instant;
@@ -30,6 +31,10 @@ public interface ChatRepository {
 
     };
 
+    default void updateLastReadMsgForDeleted(List<Message> messages) {
+
+    }
+
     void deleteChat(long id);
 
     /**
@@ -45,4 +50,6 @@ public interface ChatRepository {
     Chat getOrCreate(Chat chat);
 
     void addParticipants(long chatId, long [] users);
+
+    Chat getAllUsersChat();
 }

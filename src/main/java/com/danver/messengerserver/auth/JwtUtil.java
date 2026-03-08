@@ -53,7 +53,7 @@ public class JwtUtil {
     }
     public boolean validateToken(String token) {
         try {
-            log.info("Checking token " + token + " for validity");
+            log.info("Checking token {} for validity", token);
             Jwts.parser()
                     .verifyWith(secret)
                     .build()

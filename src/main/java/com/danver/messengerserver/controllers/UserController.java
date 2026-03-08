@@ -3,6 +3,7 @@ package com.danver.messengerserver.controllers;
 import com.danver.messengerserver.exceptions.StorageException;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.models.UserRequestDTO;
+import com.danver.messengerserver.services.interfaces.ChatService;
 import com.danver.messengerserver.services.interfaces.StorageService;
 import com.danver.messengerserver.services.interfaces.UserService;
 import com.danver.messengerserver.utils.FileStorageOptions;
@@ -21,11 +22,14 @@ public class UserController {
 
     private final UserService userService;
     private final StorageService storageService;
+    private final ChatService chatService;
 
     @Autowired
-    public UserController(UserService userService, @Qualifier("s3Storage") StorageService storageService) {
+    public UserController(UserService userService, @Qualifier("s3Storage") StorageService storageService,
+                          ChatService chatService) {
         this.userService = userService;
         this.storageService = storageService;
+        this.chatService = chatService;
     }
 
     @GetMapping("/{id}")
@@ -47,6 +51,9 @@ public class UserController {
         if (createdUser == null) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
+        long [] users = {createdUser.getId()};
+        // Add new user to common chat
+        this.chatService.addParticipants(this.chatService.getAllUsersChat().getId(), users);
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
 

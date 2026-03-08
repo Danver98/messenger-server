@@ -22,7 +22,7 @@ import java.util.List;
 @Service
 public class UserServiceImpl implements UserService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class.getName());
 
     private final UserRepository userRepository;
 

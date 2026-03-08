@@ -5,11 +5,14 @@ import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.MessageDataType;
 import com.danver.messengerserver.models.MessageRequestDTO;
 import com.danver.messengerserver.repositories.interfaces.MessageRepository;
+import com.danver.messengerserver.services.interfaces.ChatService;
 import com.danver.messengerserver.services.interfaces.MessageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,13 +21,15 @@ import java.util.UUID;
 @Service
 public class MessageServiceImpl implements MessageService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(MessageServiceImpl.class.getName());
 
     private final MessageRepository messageRepository;
+    private final ChatService chatService;
 
     @Autowired
-    public MessageServiceImpl(MessageRepository messageRepository) {
+    public MessageServiceImpl(MessageRepository messageRepository, ChatService chatService) {
         this.messageRepository = messageRepository;
+        this.chatService = chatService;
     }
 
 
@@ -47,5 +52,19 @@ public class MessageServiceImpl implements MessageService {
         }
         messageRepository.createMessage(message);
         return message;
+    }
+
+    @Override
+    @Transactional
+    public void deleteMessages(long userId, List<Message> messages) {
+        for (Message message: messages) {
+            // TODO: chat admin can delete arbitrary messages
+            if (userId != message.getAuthor().getId()) {
+                throw new AccessDeniedException("Insufficient permissions for this operation");
+            }
+        }
+        // Update lastReadMsg, if deleted is this one
+        this.chatService.updateLastReadMsgForDeleted(messages);
+        messageRepository.deleteMessages(messages);
     }
 }
