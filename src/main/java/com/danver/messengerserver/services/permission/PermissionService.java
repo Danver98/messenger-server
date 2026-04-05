@@ -1,6 +1,5 @@
 package com.danver.messengerserver.services.permission;
 
-import com.danver.messengerserver.models.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,5 +36,10 @@ public class PermissionService implements IPermissionService<UserDetails, Long> 
     @Override
     public int grantAuthority(Long user, Long resource, int resourceType, String permission) {
         return permissionRepository.addPermission(user, resource, resourceType, permission);
+    }
+
+    @Override
+    public int grantAuthority(List<Long> users, Long resource, int resourceType, String permission) {
+        return permissionRepository.addPermission(users, resource, resourceType, permission);
     }
 }

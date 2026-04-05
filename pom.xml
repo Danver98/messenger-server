@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.3</version>
+        <version>3.4.4</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.danver</groupId>
@@ -14,15 +14,18 @@
     <name>MessengerServer</name>
     <description>MessengerServer</description>
     <properties>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <flyway.version>10.20.1</flyway.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- Source: https://mvnrepository.com/artifact/software.amazon.awssdk/bom -->
             <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-bom</artifactId>
-                <version>1.12.603</version>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>2.42.28</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -30,135 +33,114 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-data-jdbc -->
+        <!-- Spring Boot Starters - versions managed by Spring Boot parent -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jdbc</artifactId>
-            <version>3.2.3</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-jdbc -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
-            <version>3.2.3</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            <version>3.2.3</version>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.7.2</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-test -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <version>3.2.3</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/io.jsonwebtoken/jjwt-api -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>0.12.5</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/io.jsonwebtoken/jjwt-impl -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>0.12.5</version>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/io.jsonwebtoken/jjwt-jackson -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.5</version>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/jakarta.xml.bind/jakarta.xml.bind-api -->
-        <dependency>
-            <groupId>jakarta.xml.bind</groupId>
-            <artifactId>jakarta.xml.bind-api</artifactId>
-            <version>4.0.2</version>
-        </dependency>
-
-
-        <!-- https://mvnrepository.com/artifact/org.springframework.data/spring-data-redis -->
-        <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-redis</artifactId>
-            <version>3.2.3</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-data-redis -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
-            <version>3.2.3</version>
         </dependency>
-
-
-        <!-- https://mvnrepository.com/artifact/org.springframework/spring-websocket -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-websocket</artifactId>
-            <version>6.1.4</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.springframework/spring-messaging -->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-messaging</artifactId>
-            <version>6.1.4</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- AWS -->
-        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-s3 -->
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.12.603</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-devtools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
             <optional>true</optional>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.flywaydb/flyway-core -->
+        <!-- Database -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.5</version>
+        </dependency>
+
+        <!-- JWT -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- XML Binding -->
+        <dependency>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+            <version>4.0.2</version>
+        </dependency>
+
+        <!-- Redis -->
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
+        </dependency>
+
+        <!-- WebSocket & Messaging - versions managed by Spring Boot parent -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-websocket</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-messaging</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.36</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- AWS S3 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
+        <!-- Flyway - Java 21 compatible version -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
-            <version>10.10.0</version>
+            <version>${flyway.version}</version>
+            <scope>compile</scope>
         </dependency>
-
-
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <!-- Use the same version as your flyway-core -->
+            <version>${flyway.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -171,11 +153,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>17</source>
-                    <target>17</target>
+                    <source>21</source>
+                    <target>21</target>
                 </configuration>
             </plugin>
         </plugins>
     </build>
-
 </project>

@@ -1,7 +1,5 @@
 package com.danver.messengerserver.services.permission;
 
-import com.danver.messengerserver.models.User;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
@@ -23,23 +21,11 @@ public interface IPermissionService<U extends UserDetails, R> {
         return 0;
     }
 
-    /**
-     * Replaces existing list of permissions with a new one
-     *
-     * @param principal
-     * @param resource
-     * @param resourceType
-     * @param permissions
-     * @return
-     */
-    default int grantAuthority(U principal, R resource, int resourceType, List<?> permissions) {
-        return 0;
-    }
-
     default int grantAuthority(Long user, R resource, int resourceType, String permission) {
         return 0;
     }
-    default int grantAuthority(Long user, R resource, int resourceType, List<?> permissions) {
+
+    default int grantAuthority(List<Long> users, Long resource, int resourceType, List<String> permission) {
         return 0;
     }
 
@@ -59,4 +45,5 @@ public interface IPermissionService<U extends UserDetails, R> {
         return 0;
     }
 
+    int grantAuthority(List<Long> users, Long resource, int resourceType, String permission);
 }

@@ -1,5 +1,5 @@
 package com.danver.messengerserver.configs.cache;
-;
+
 import org.springframework.data.redis.cache.RedisCache;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;

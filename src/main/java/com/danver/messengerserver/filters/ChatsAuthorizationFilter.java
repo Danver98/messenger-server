@@ -100,8 +100,14 @@ public class ChatsAuthorizationFilter extends OncePerRequestFilter {
             Pattern pattern = Pattern.compile("^/chats/(\\d+).*");
             Matcher matcher = pattern.matcher(path);
             chatId = Long.parseLong(path.split("/")[2]);
+        } else if (methodName.equals("POST") && path.equals("/chats/create")) {
+            /*
+            CREATE
+            */
+            permission = PermissionType.Chat.CREATE.getValue();
+            chatId = 0L;
         }
-        // Default check: user can complete operations if he's present in the chat
+    // Default check: user can complete operations if he's present in the chat
         return permissionService.isAuthorized( (UserDetails) authentication.getPrincipal(),
                 chatId, resourceType,
                 permission);

@@ -49,6 +49,7 @@ public class UserServiceImpl implements UserService {
         //User has raw password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return this.userRepository.createUser(user).flushPasswordAndSalt();
+        // TODO: add default permissions (e.g. for creating chats)
     }
 
     @Override

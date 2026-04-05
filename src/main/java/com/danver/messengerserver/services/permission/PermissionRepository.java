@@ -66,7 +66,7 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         CompletableFuture<Integer> redisFuture = CompletableFuture.supplyAsync(() -> addPermissionToRedis(principal, resourceId, resourceType, permission));
         CompletableFuture<Integer> dbFuture = CompletableFuture.supplyAsync(() -> addPermissionToDB(principal, resourceId, resourceType, permission));
         try {
-            CompletableFuture.allOf(redisFuture, dbFuture).join();
+            CompletableFuture.allOf(dbFuture).join();
             if (redisFuture.get() < 0) {
                 // TODO: queue task to do later
             }
@@ -79,6 +79,15 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
     @Override
     public int addPermission(Long user, Long resource, int resourceType, String permission) {
         return addPermission(User.builder().id(user).build(), resource, resourceType, permission);
+    }
+
+    @Override
+    public int addPermission(List<Long> users, Long resource, int resourceType, String permission) {
+        // TODO: add by batch update
+        for (Long user: users) {
+            addPermission(user, resource, resourceType, permission);
+        }
+        return 0;
     }
 
     private List<String> getPermissionsFromDB(Long user, Long resourceId, int resourceType) {
@@ -103,11 +112,16 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
 
     private int addPermissionToDB(UserDetails principal, Long resourceId, int resourceType, String permission) {
         jdbcTemplate.update("""
-            insert into "UsersPermissions" ("user", "resource", "resource_type", "permissions")
-                values (?, ?, ?, ?::text[])
-            on conflict do update
-                set "permissions" = "permissions" || ?
-        """, principal.getUsername(), resourceId, resourceType, permission, permission);
+        INSERT INTO "UsersPermissions" ("user", "resource", "resource_type", "permissions")
+        VALUES (?, ?, ?, ARRAY[?])
+        ON CONFLICT ("user", "resource", "resource_type") 
+        DO UPDATE SET 
+            "permissions" = CASE 
+                WHEN ? = ANY(COALESCE("UsersPermissions"."permissions", ARRAY[]::TEXT[])) 
+                THEN "UsersPermissions"."permissions"
+                ELSE ARRAY_APPEND(COALESCE("UsersPermissions"."permissions", ARRAY[]::TEXT[]), ?)
+            END
+    """, ((User)principal).getId(), resourceId, resourceType, permission, permission, permission);
         return 0;
     }
 
@@ -139,11 +153,12 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         return 0;
     }
 
-    @Scheduled(fixedDelay = 180000)
+    @Scheduled(fixedDelay = 180000) // 180000
     public void updateRedisPermissions() {
         JdbcTemplate template = new JdbcTemplate(this.dataSource);
         template.setFetchSize(1000);
-            List<Permission> permissions = template.query("""
+        // TODO: process data and send to redis in chunks
+        List<Permission> permissions = template.query("""
             select
                 "id",
                 "user",

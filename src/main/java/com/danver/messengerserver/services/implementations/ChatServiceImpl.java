@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.filter.CharacterEncodingFilter;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -41,7 +42,13 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public Chat createChat(Chat chat) {
-        return chatRepository.getOrCreate(chat);
+        Chat newChat = chatRepository.getOrCreate(chat);
+        List<Long> participants =newChat.getParticipants();
+        if (participants != null && !participants.isEmpty()) {
+            permissionService.grantAuthority(participants, newChat.getId(), ResourceType.CHAT.getValue(),
+                    PermissionType.Chat.DEFAULT.getValue());
+        }
+        return newChat;
     }
 
     @Override
@@ -69,6 +76,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public void updateChat(Chat chat) {
+        // TODO: add permissions for users to this chat
         chatRepository.updateChat(chat);
     }
 
@@ -84,6 +92,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public void deleteChat(long id) {
+        // TODO: revoke permissions for users in this chat
         chatRepository.deleteChat(id);
     }
 

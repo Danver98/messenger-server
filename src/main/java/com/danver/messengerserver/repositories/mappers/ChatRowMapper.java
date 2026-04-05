@@ -6,8 +6,8 @@ import org.springframework.jdbc.core.RowMapper;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-;
 import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 
 public class ChatRowMapper implements RowMapper<Chat> {
@@ -23,7 +23,7 @@ public class ChatRowMapper implements RowMapper<Chat> {
         }
         chat.setAvatarUrl(rs.getString("avatarUrl"));
         OffsetDateTime timestamp = rs.getObject("lastChanged", OffsetDateTime.class);
-        chat.setLastChanged(timestamp.toInstant());
+        chat.setLastChanged(timestamp != null ? timestamp.toInstant() : Instant.now());
 
         chat.setPrivate(isPrivate);
         chat.setDraft(rs.getBoolean("draft"));

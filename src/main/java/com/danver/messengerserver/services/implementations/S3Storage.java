@@ -1,10 +1,5 @@
 package com.danver.messengerserver.services.implementations;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.CreateBucketRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
 import com.danver.messengerserver.exceptions.StorageException;
 import com.danver.messengerserver.services.interfaces.StorageService;
 import com.danver.messengerserver.utils.FileStorageOptions;
@@ -13,21 +8,27 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
-import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 @Service
 @Qualifier("s3Storage")
 public class S3Storage implements StorageService {
-    private final AmazonS3 s3;
+    private final S3Client s3;
     private final String bucketName;
+    private final String endpoint;
 
     @Autowired
-    public S3Storage(AmazonS3 s3, Environment env) {
+    public S3Storage(S3Client s3, Environment env) {
         this.s3 = s3;
         this.bucketName = env.getProperty("s3.storage.bucket");
+        this.endpoint = env.getProperty("s3.storage.endpoint");
     }
+
     @Override
     public String store(MultipartFile file) throws StorageException {
         return null;
@@ -35,34 +36,79 @@ public class S3Storage implements StorageService {
 
     @Override
     public String store(MultipartFile file, FileStorageOptions options) throws StorageException {
-        if (!s3.doesBucketExistV2(this.bucketName)) {
-            CreateBucketRequest request = new CreateBucketRequest(this.bucketName);
-            s3.createBucket(request);
-        }
         try {
-            //Path filepath = Paths.get(System.getProperty("java.io.tmpdir" + "/" + file.getOriginalFilename()));
+            // Check bucket
+            if (!bucketExists(this.bucketName)) {
+                createBucket(this.bucketName);
+            }
+
             String key = options.getPath() + "/" + file.getOriginalFilename();
 
-            File tempFile = File.createTempFile("tmp-file-prefix", "tmp-file-postfix");
-            tempFile.deleteOnExit();
-            file.transferTo(tempFile);
-            ObjectMetadata metadata = new ObjectMetadata();
-            metadata.addUserMetadata("owner", String.valueOf(options.getOwner()));
-            PutObjectRequest request = new PutObjectRequest(this.bucketName, key, tempFile)
-                    .withMetadata(metadata);
-            PutObjectResult result = s3.putObject(request);
-            tempFile.delete();
-            return s3.getUrl(this.bucketName, key).toString();
+            // Direct upload without temp file (better performance)
+            PutObjectRequest request = PutObjectRequest.builder()
+                    .bucket(this.bucketName)
+                    .key(key)
+                    .metadata(Map.of("owner", String.valueOf(options.getOwner())))
+                    .build();
+
+            s3.putObject(request,
+                    RequestBody.fromInputStream(
+                            file.getInputStream(),
+                            file.getSize()
+                    )
+            );
+            return getSimpleUrl(key);
+
         } catch (IOException e) {
             throw new StorageException("Couldn't upload file " + file.getOriginalFilename());
-        } catch (SecurityException ex) {
-            throw new StorageException("Couldn't delete temp file while uploading " + file.getOriginalFilename());
         }
+    }
+
+    private boolean bucketExists(String bucketName) throws StorageException {
+        try {
+            HeadBucketRequest headBucketRequest = HeadBucketRequest.builder()
+                    .bucket(bucketName)
+                    .build();
+            s3.headBucket(headBucketRequest);
+            return true;
+        } catch (NoSuchBucketException e) {
+            return false;
+        } catch (S3Exception e) {
+            throw new StorageException("Error checking bucket existence: " + e.getMessage());
+        }
+    }
+
+    private void createBucket(String bucketName) throws StorageException {
+        try {
+            CreateBucketRequest createBucketRequest = CreateBucketRequest.builder()
+                    .bucket(bucketName)
+                    .build();
+            s3.createBucket(createBucketRequest);
+
+            // Optionally wait for bucket to be created
+            s3.waiter().waitUntilBucketExists(
+                    HeadBucketRequest.builder().bucket(bucketName).build()
+            );
+        } catch (BucketAlreadyExistsException e) {
+            throw new StorageException("Bucket already exists: " + bucketName);
+        } catch (BucketAlreadyOwnedByYouException e) {
+            // Bucket already owned by you - fine, continue
+            System.out.println("Bucket already owned by you: " + bucketName);
+        } catch (S3Exception e) {
+            throw new StorageException("Error creating bucket: " + e.getMessage());
+        }
+    }
+
+    private String getSimpleUrl(String key) {
+        // Construct URL manually using the endpoint from properties
+        // Remove trailing slash from endpoint if present
+        String baseEndpoint = endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
+        return String.format("%s/%s/%s", baseEndpoint, bucketName, key);
     }
 
     @Override
     public void load(String filename) {
-
+        // To be implemented
     }
 
     @Override

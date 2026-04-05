@@ -1,12 +1,5 @@
 package com.danver.messengerserver.scripts;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.SdkClientException;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.*;
 import com.danver.messengerserver.services.permission.PermissionType;
 import com.danver.messengerserver.services.permission.ResourceType;
 import com.danver.messengerserver.utils.Constants;
@@ -18,11 +11,20 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.waiters.S3Waiter;
+
+import java.net.URI;
 
 @Component
 public class ScriptRunner {
     @Autowired
-    AmazonS3 s3;
+    S3Client s3;
     @Autowired
     Environment env;
     @Autowired
@@ -34,20 +36,69 @@ public class ScriptRunner {
     public void createBucket() {
         String bucketName = "filebase-bucket-name-2";
         try {
-            AmazonS3ClientBuilder.standard();
-            AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
-                    .withCredentials(new ProfileCredentialsProvider())
-                    .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("s3.filebase.com", "us-east-1"))
+            // Create S3 client with custom endpoint (Filebase)
+            S3Client s3Client = S3Client.builder()
+                    .credentialsProvider(ProfileCredentialsProvider.create())
+                    .region(Region.US_EAST_1)
+                    .endpointOverride(URI.create("https://s3.filebase.com"))
                     .build();
-            if (!s3Client.doesBucketExistV2(bucketName)) {
-                s3Client.createBucket(new CreateBucketRequest(bucketName));
-                String bucketLocation = s3Client.getBucketLocation(new GetBucketLocationRequest(bucketName));
+
+            // Check if bucket exists
+            if (!bucketExists(s3Client, bucketName)) {
+                // Create bucket
+                CreateBucketRequest createBucketRequest = CreateBucketRequest.builder()
+                        .bucket(bucketName)
+                        .build();
+                s3Client.createBucket(createBucketRequest);
+
+                // Wait for bucket to exist
+                try (S3Waiter waiter = s3Client.waiter()) {
+                    waiter.waitUntilBucketExists(
+                            HeadBucketRequest.builder().bucket(bucketName).build()
+                    );
+                }
+
+                // Get bucket location
+                String bucketLocation = getBucketLocation(s3Client, bucketName);
                 System.out.println("Bucket location: " + bucketLocation);
             }
-        } catch (AmazonServiceException e) {
+        } catch (S3Exception e) {
+            System.err.println("An Amazon S3 error occurred: " + e.getMessage());
             e.printStackTrace();
         } catch (SdkClientException e) {
+            System.err.println("An SDK client error occurred: " + e.getMessage());
             e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("An unexpected error occurred: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private boolean bucketExists(S3Client s3Client, String bucketName) {
+        try {
+            HeadBucketRequest headBucketRequest = HeadBucketRequest.builder()
+                    .bucket(bucketName)
+                    .build();
+            s3Client.headBucket(headBucketRequest);
+            return true;
+        } catch (NoSuchBucketException e) {
+            return false;
+        } catch (S3Exception e) {
+            System.err.println("Error checking bucket existence: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private String getBucketLocation(S3Client s3Client, String bucketName) {
+        try {
+            GetBucketLocationRequest locationRequest = GetBucketLocationRequest.builder()
+                    .bucket(bucketName)
+                    .build();
+            GetBucketLocationResponse locationResponse = s3Client.getBucketLocation(locationRequest);
+            return locationResponse.locationConstraintAsString();
+        } catch (S3Exception e) {
+            System.err.println("Error getting bucket location: " + e.getMessage());
+            return "Unknown";
         }
     }
 
@@ -55,23 +106,41 @@ public class ScriptRunner {
     public void enableVersioning() {
         try {
             String bucketName = env.getProperty("s3.storage.bucket");
-            // 1. Enable versioning on the bucket.
-            BucketVersioningConfiguration configuration =
-                    new BucketVersioningConfiguration().withStatus("Enabled");
 
-            SetBucketVersioningConfigurationRequest setBucketVersioningConfigurationRequest =
-                    new SetBucketVersioningConfigurationRequest(bucketName,configuration);
+            if (bucketName == null || bucketName.isEmpty()) {
+                System.err.println("Bucket name not configured in properties");
+                return;
+            }
 
-            s3.setBucketVersioningConfiguration(setBucketVersioningConfigurationRequest);
+            // 1. Enable versioning on the bucket
+            PutBucketVersioningRequest putVersioningRequest = PutBucketVersioningRequest.builder()
+                    .bucket(bucketName)
+                    .versioningConfiguration(
+                            VersioningConfiguration.builder()
+                                    .status(BucketVersioningStatus.ENABLED)
+                                    .build()
+                    )
+                    .build();
 
-            // 2. Get bucket versioning configuration information.
-            BucketVersioningConfiguration conf = s3.getBucketVersioningConfiguration(bucketName);
-            System.out.println("bucket versioning configuration status:    " + conf.getStatus());
+            s3.putBucketVersioning(putVersioningRequest);
 
-        } catch (AmazonS3Exception amazonS3Exception) {
-            System.out.format("An Amazon S3 error occurred. Exception: %s", amazonS3Exception);
+            // 2. Get bucket versioning configuration information
+            GetBucketVersioningRequest getVersioningRequest = GetBucketVersioningRequest.builder()
+                    .bucket(bucketName)
+                    .build();
+
+            GetBucketVersioningResponse versioningResponse = s3.getBucketVersioning(getVersioningRequest);
+            String status = versioningResponse.status() != null ?
+                    versioningResponse.status().toString() : "Not enabled";
+
+            System.out.println("Bucket versioning configuration status: " + status);
+
+        } catch (S3Exception e) {
+            System.out.format("An Amazon S3 error occurred. Exception: %s%n", e.getMessage());
+            e.printStackTrace();
         } catch (Exception ex) {
-            System.out.format("Exception: %s", ex);
+            System.out.format("Exception: %s%n", ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
