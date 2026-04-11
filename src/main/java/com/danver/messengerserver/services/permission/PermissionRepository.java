@@ -37,7 +37,6 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
     private final DataSource dataSource;
 
     private static final String PERMISSION_KEY = Constants.REDIS_USERS_PERMISSIONS;
-    private static final int DB_BATCH_SIZE = 1000;
     private static final int REDIS_BATCH_SIZE = 1000;
     private static final int CACHE_REFRESH_BATCH_SIZE = 2000;
 
@@ -186,9 +185,9 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         String sql = """
                     select
                         "permissions"
-                    from 
+                    from
                         "UsersPermissions"
-                    where 
+                    where
                         "user" = ?
                         and "resource" is not distinct from ?
                         and "resource_type" = ?
@@ -376,8 +375,9 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
                         OFFSET
                             ?
                         """,
-                        new Object[]{CACHE_REFRESH_BATCH_SIZE, offset},
-                        this::mapPermission
+                        this::mapPermission,
+                        CACHE_REFRESH_BATCH_SIZE,
+                        offset
                 );
 
                 if (permissions.isEmpty()) {
@@ -443,11 +443,17 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         if (permissionsStr == null || permissionsStr.length() <= 2) {
             return new ArrayList<>();
         }
+        // Remove brackets: [READ, WRITE] -> READ, WRITE
         String content = permissionsStr.substring(1, permissionsStr.length() - 1);
-        if (content.isEmpty()) {
+        // Handle empty array case: "[]" already caught above, but just in case
+        if (content.trim().isEmpty()) {
             return new ArrayList<>();
         }
-        return Arrays.asList(content.split(", "));
+        // Split by comma and trim each permission
+        return Arrays.stream(content.split(","))
+                .map(String::trim)
+                .filter(perm -> !perm.isEmpty())
+                .collect(Collectors.toList());
     }
 
     private String serializePermissions(List<String> permissions) {
