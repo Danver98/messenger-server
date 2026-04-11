@@ -28,4 +28,6 @@ public interface IPermissionRepository<U extends UserDetails, R> {
     int addPermission(Long user, R resource, int resourceType, String permission);
 
     int addPermission(List<Long> users, R resource, int resourceType, String permission);
+
+    int addPermission(long[] userIds, R chatId, int resourceType, String permission);
 }

@@ -65,13 +65,11 @@ public class ChatController {
     // Maybe we should split methods to send data either to private chat or to group chat (look https://www.baeldung.com/spring-websockets-send-message-to-user)
 
     @PostMapping("/")
-    @PreAuthorize("T(java.lang.Long).toString(#dto.getUserId()) == authentication.name")
     List<Chat> list(@RequestBody ChatPagingDTO dto) {
         return chatService.getChats(dto);
     }
 
     @PostMapping("/light-list")
-    @PreAuthorize("T(java.lang.Long).toString(#dto.getUserId()) == authentication.name")
     List<Chat> lightList(@RequestBody ChatPagingDTO dto) {
         return chatService.getChatsLight(dto);
     }

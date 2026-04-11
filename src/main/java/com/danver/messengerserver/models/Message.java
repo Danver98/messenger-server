@@ -60,6 +60,7 @@ public class Message {
     }
 
     public OffsetDateTime getTimeUTC() {
-        return this.getTime().atOffset(ZoneOffset.UTC);
+        Instant time = this.getTime();
+        return time == null ? null : time.atOffset(ZoneOffset.UTC);
     }
 }

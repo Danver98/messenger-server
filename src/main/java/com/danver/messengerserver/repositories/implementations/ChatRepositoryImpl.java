@@ -465,17 +465,22 @@ public class ChatRepositoryImpl implements ChatRepository {
 
     @Override
     public void addParticipants(long chatId, long[] users) {
-        addParticipantsToRedisAsync(chatId, users);
+        Long[] userIds = Arrays.stream(users).boxed().toArray(Long[]::new);
+
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("chatId", chatId);
-        namedParameters.addValue("users", users);
-        String query= """
-            insert into
-                "UsersChats" ("chatId", "userId")
-            select
-                :chatId, unnest(:users)
+        namedParameters.addValue("users", userIds);
+
+        String query = """
+        insert into
+            "UsersChats" ("chatId", "userId")
+        select
+            :chatId, unnest(:users)
+        on conflict
+            ("chatId", "userId") do nothing
         """;
-        jdbcTemplate.update(query, namedParameters);
+
+        namedParameterJdbcTemplate.update(query, namedParameters);
     }
 
     @Override
@@ -487,21 +492,6 @@ public class ChatRepositoryImpl implements ChatRepository {
             return null;
         }
         return this.getChat(allChatId, null);
-    }
-
-    @Async
-    public void addParticipantsToRedisAsync(long chatId, long[] users) {
-        log.info("Executing addParticipantsToRedisAsync method - {}", Thread.currentThread().getName());
-        HashOperations<String, String, String> hashOps = redisTemplate.opsForHash();
-        List<String> values = hashOps.multiGet(Constants.REDIS_USERS_PERMISSIONS, Arrays.stream(users).mapToObj(String::valueOf).toList());
-        int i = 0;
-        Map<String, String> userChats = new HashMap<>();
-        for (long userId: users) {
-            List<String> chatList = new ArrayList<>(List.of(values.get(i++).split(",")));
-            chatList.add(Long.toString(chatId));
-            userChats.put(Long.toString(userId), chatList.toString());
-        }
-        hashOps.putAll(Constants.REDIS_USERS_PERMISSIONS, userChats);
     }
 
     private List<Long> getChats(Long userId){

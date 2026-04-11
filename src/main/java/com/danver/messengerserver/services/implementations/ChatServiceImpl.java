@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.filter.CharacterEncodingFilter;
 
 import java.util.Collections;
@@ -102,11 +103,10 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
     public void addParticipants(long chatId, long[] users) {
        this.chatRepository.addParticipants(chatId, users);
-       for (long user: users) {
-           permissionService.grantAuthority(user, chatId, ResourceType.CHAT.getValue(), PermissionType.Chat.DEFAULT.getValue());
-       }
+       permissionService.grantAuthority(users, chatId, ResourceType.CHAT.getValue(), PermissionType.Chat.DEFAULT.getValue());
     }
 
     @Override

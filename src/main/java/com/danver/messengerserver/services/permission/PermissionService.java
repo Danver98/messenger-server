@@ -42,4 +42,9 @@ public class PermissionService implements IPermissionService<UserDetails, Long> 
     public int grantAuthority(List<Long> users, Long resource, int resourceType, String permission) {
         return permissionRepository.addPermission(users, resource, resourceType, permission);
     }
+
+    @Override
+    public int grantAuthority(long[] userIds, long chatId, int resourceType, String permission) {
+        return permissionRepository.addPermission(userIds, chatId, resourceType, permission);
+    }
 }

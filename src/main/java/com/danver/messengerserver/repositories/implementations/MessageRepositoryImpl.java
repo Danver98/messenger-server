@@ -163,7 +163,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                         on "Messages"."authorId" = "Users".id
                     where
                         "chatId" = :chatId
-                        and "Messages"."id" is not distinct from (
+                        and ("Messages"."id" is not distinct from (
                             select
                                 "id"
                             from
@@ -174,7 +174,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                                 "lastChanged"
                             from
                                 last_read_msg
-                        ), to_timestamp(0))
+                        ), to_timestamp(0)))
                     order by
                         "lastChanged" desc
                     fetch first :count rows only

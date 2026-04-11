@@ -45,5 +45,7 @@ public interface IPermissionService<U extends UserDetails, R> {
         return 0;
     }
 
-    int grantAuthority(List<Long> users, Long resource, int resourceType, String permission);
+    int grantAuthority(List<Long> userIds, Long resource, int resourceType, String permission);
+
+    int grantAuthority(long[] userIds, long chatId, int resourceType, String permission);
 }

@@ -1,6 +1,7 @@
 package com.danver.messengerserver.models;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
@@ -74,5 +75,9 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    public void setAuthorities(Set<Role> roles) {
+        this.roles = roles;
     }
 }
