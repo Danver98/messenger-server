@@ -2,20 +2,19 @@ package com.danver.messengerserver.services.permission;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Slf4j
-@Component
+@Service
 public class PermissionService implements IPermissionService<UserDetails, Long> {
 
     private final IPermissionRepository<UserDetails, Long> permissionRepository;
 
     @Autowired
-    public PermissionService(RedisTemplate<String, ?> redis, IPermissionRepository<UserDetails, Long> permissionRepository) {
+    public PermissionService(IPermissionRepository<UserDetails, Long> permissionRepository) {
         this.permissionRepository = permissionRepository;
     }
 
@@ -44,7 +43,12 @@ public class PermissionService implements IPermissionService<UserDetails, Long> 
     }
 
     @Override
-    public int grantAuthority(long[] userIds, long chatId, int resourceType, String permission) {
-        return permissionRepository.addPermission(userIds, chatId, resourceType, permission);
+    public int grantAuthority(long[] userIds, long resourceId, int resourceType, String permission) {
+        return permissionRepository.addPermission(userIds, resourceId, resourceType, permission);
+    }
+
+    @Override
+    public int revokeAuthority(long[] userIds, long resourceId, int resourceType) {
+        return this.permissionRepository.deletePermissions(userIds, resourceId, resourceType);
     }
 }

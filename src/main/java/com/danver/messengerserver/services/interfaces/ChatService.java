@@ -49,4 +49,6 @@ public interface ChatService {
      void addParticipants(long chatId, long[] users);
 
      Chat getAllUsersChat();
+
+     void deleteParticipants(long id, long[] userId);
 }

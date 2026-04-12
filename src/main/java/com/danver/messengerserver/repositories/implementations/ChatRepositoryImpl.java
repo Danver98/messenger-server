@@ -494,6 +494,23 @@ public class ChatRepositoryImpl implements ChatRepository {
         return this.getChat(allChatId, null);
     }
 
+    @Override
+    public void deleteParticipants(long chatId, long[] userIds) {
+        if (userIds == null || userIds.length == 0) {
+            return;
+        }
+
+        Long[] longUserIds = Arrays.stream(userIds).boxed().toArray(Long[]::new);
+
+        this.jdbcTemplate.update("""
+            delete from
+                "UsersChats"
+            where
+                "chatId" = ?
+                and "userId" = any(?)
+        """, chatId, longUserIds);
+    }
+
     private List<Long> getChats(Long userId){
         return jdbcTemplate.queryForList("""
                 select distinct

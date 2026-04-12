@@ -8,6 +8,7 @@ public interface IPermissionService<U extends UserDetails, R> {
 
     boolean isAuthorized(U principal, R resource, int resourceType, String permission);
 
+    // ==================== GRANTING AUTHORITIES ====================
     /**
      * Adds certain permissions to the list of permissions
      *
@@ -29,7 +30,17 @@ public interface IPermissionService<U extends UserDetails, R> {
         return 0;
     }
 
+    int grantAuthority(List<Long> userIds, Long resource, int resourceType, String permission);
+
+    int grantAuthority(long[] userIds, long chatId, int resourceType, String permission);
+
+    // ==================== REVOKING AUTHORITIES ====================
+
     default int revokeAuthority(U principal, R resource, int resourceType, String permission) {
+        return 0;
+    }
+
+    default int revokeAuthority(List<U> principal, R resource, int resourceType, List<String> permission) {
         return 0;
     }
 
@@ -45,7 +56,13 @@ public interface IPermissionService<U extends UserDetails, R> {
         return 0;
     }
 
-    int grantAuthority(List<Long> userIds, Long resource, int resourceType, String permission);
+    default int revokeAuthority(List<U> principal, R resource, int resourceType) {
+        return 0;
+    }
 
-    int grantAuthority(long[] userIds, long chatId, int resourceType, String permission);
+    default int revokeAuthority(long[] users, R resource, int resourceType) {
+        return 0;
+    }
+
+    int revokeAuthority(long[] userIds, long resourceId, int resourceType);
 }

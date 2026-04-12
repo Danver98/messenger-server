@@ -23,7 +23,6 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -42,7 +41,7 @@ public class ChatController {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(ChatController.class.getName());
 
     @Autowired
     public ChatController(ChatService chatService, MessageService messageService, @Qualifier("s3Storage") StorageService storageService, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
@@ -109,6 +108,12 @@ public class ChatController {
     @PostMapping("/add")
     ResponseEntity<?> addParticipants(@RequestBody ChatRequestDTO dto) {
         this.chatService.addParticipants(dto.getChatId(), dto.getUsers());
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}/users")
+    ResponseEntity<?> deleteParticipants(@PathVariable long id, @RequestParam long[] userId) {
+        this.chatService.deleteParticipants(id, userId);
         return ResponseEntity.ok().build();
     }
 

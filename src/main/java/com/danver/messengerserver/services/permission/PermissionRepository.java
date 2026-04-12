@@ -120,6 +120,53 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
     }
 
     /**
+     * Delete permissions for multiple users for a specific resource
+     *
+     * @param userIds Array of user IDs
+     * @param resource Resource ID (can be null for resource-independent permissions)
+     * @param resourceType Resource type
+     * @return Number of deleted records, or -1 if operation failed
+     */
+    @Override
+    public int deletePermissions(long[] userIds, Long resource, int resourceType) {
+        if (userIds == null || userIds.length == 0) {
+            log.debug("Empty user IDs array, nothing to delete");
+            return 0;
+        }
+
+        // Remove duplicates from userIds
+        long[] distinctUserIds = Arrays.stream(userIds).distinct().toArray();
+        // Convert to Long[] for PostgreSQL
+        Long[] longUserIds = Arrays.stream(distinctUserIds)
+                .boxed()
+                .toArray(Long[]::new);
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("userIds", longUserIds);
+        params.addValue("resource", resource);
+        params.addValue("resourceType", resourceType);
+
+        String sql = """
+            delete from
+                "UsersPermissions"
+            where
+                "user" = any(:userIds)
+                and "resource" is not distinct from :resource
+                and "resource_type" = :resourceType
+            """;
+
+        int deletedCount = namedParameterJdbcTemplate.update(sql, params);
+
+        log.info("Deleted {} permission records for {} users, resource: {}, type: {}",
+                deletedCount, distinctUserIds.length, resource, resourceType);
+
+        // Also delete from Redis cache
+        deletePermissionsFromRedis(distinctUserIds, resource, resourceType);
+
+        return deletedCount;
+    }
+
+    /**
      * Batch add permissions for multiple users with multiple permissions
      * This is the most efficient method for bulk operations
      */
@@ -270,43 +317,41 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         if (principals.isEmpty() || permissions.isEmpty()) {
             return 0;
         }
-
         try {
-            HashOperations<String, String, Set<String>> hashOps = redis.opsForHash();
+            HashOperations<String, String, String> hashOps = redis.opsForHash();
+            
             // Prepare keys
             List<String> keys = principals.stream()
                     .map(p -> buildRedisKey(((User) p).getId(), resourceId, resourceType))
                     .collect(Collectors.toList());
 
             // Batch get existing permissions
-            List<Set<String>> existingPermissionsList = hashOps.multiGet(PERMISSION_KEY, keys);
+            List<String> existingPermissionsList = hashOps.multiGet(PERMISSION_KEY, keys);
+
             // Prepare updates
-            Map<String, Set<String>> updates = new HashMap<>();
+            Map<String, String> updates = new HashMap<>();
             int totalNewPermissions = 0;
 
             for (int i = 0; i < principals.size(); i++) {
                 String key = keys.get(i);
-                Set<String> existingSet = existingPermissionsList.get(i);
+                Set<String> allPermissions = getUniquePermissions(existingPermissionsList, i);
 
-                if (existingSet == null) {
-                    existingSet = new HashSet<>();
-                }
-
-                int beforeSize = existingSet.size();
-                existingSet.addAll(permissions);
-                int addedCount = existingSet.size() - beforeSize;
+                int beforeSize = allPermissions.size();
+                allPermissions.addAll(permissions);
+                int addedCount = allPermissions.size() - beforeSize;
 
                 if (addedCount > 0) {
-                    updates.put(key, existingSet);
+                    String newValue = "[" + String.join(", ", allPermissions) + "]";
+                    updates.put(key, newValue);
                     totalNewPermissions += addedCount;
                 }
             }
 
             // Batch update only if there are changes
             if (!updates.isEmpty()) {
-                // Process Redis updates in batches to avoid large operations
-                Map<String, Set<String>> batchUpdates = new HashMap<>();
-                for (Map.Entry<String, Set<String>> entry : updates.entrySet()) {
+                // Process in batches of 1000
+                Map<String, String> batchUpdates = new HashMap<>();
+                for (Map.Entry<String, String> entry : updates.entrySet()) {
                     batchUpdates.put(entry.getKey(), entry.getValue());
                     if (batchUpdates.size() >= REDIS_BATCH_SIZE) {
                         hashOps.putAll(PERMISSION_KEY, batchUpdates);
@@ -317,8 +362,7 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
                     hashOps.putAll(PERMISSION_KEY, batchUpdates);
                 }
 
-                log.debug("Redis batch: updated {} keys, {} new permissions",
-                        updates.size(), totalNewPermissions);
+                log.debug("Redis batch: updated {} keys, {} new permissions", updates.size(), totalNewPermissions);
             }
 
             return totalNewPermissions;
@@ -339,6 +383,31 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
             hashOps.put(PERMISSION_KEY, key, serialized);
         } catch (RedisConnectionFailureException ex) {
             log.warn("Failed to cache permissions in Redis for key: {}", key);
+        }
+    }
+
+    /**
+     * Delete permissions from Redis cache for multiple users
+     */
+    private void deletePermissionsFromRedis(long[] userIds, Long resource, int resourceType) {
+        if (userIds == null || userIds.length == 0) {
+            return;
+        }
+        try {
+            HashOperations<String, String, String> hashOps = redis.opsForHash();
+
+            // Prepare keys for batch deletion
+            String[] keys = Arrays.stream(userIds)
+                    .mapToObj(userId -> buildRedisKey(userId, resource, resourceType))
+                    .toList().toArray(String[]::new);
+
+            // Delete from Redis in batch
+            Long deletedCount = hashOps.delete(PERMISSION_KEY, keys);
+
+            log.debug("Deleted {} permission entries from Redis cache", deletedCount);
+
+        } catch (RedisConnectionFailureException ex) {
+            log.warn("Redis connection failed while deleting permissions cache: {}", ex.getMessage());
         }
     }
 
@@ -428,7 +497,7 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
     private Permission mapPermission(ResultSet rs, int rowNum) throws SQLException {
         long id = rs.getLong("id");
         long user = rs.getLong("user");
-        long resource = rs.getLong("resource");
+        Long resource = rs.getObject("resource", Long.class);
         short resourceType = rs.getShort("resource_type");
         Array permissionsArray = rs.getArray("permissions");
         String[] permissions = permissionsArray != null ? (String[]) permissionsArray.getArray() : new String[0];
@@ -461,5 +530,23 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
             return "[]";
         }
         return "[" + String.join(", ", permissions) + "]";
+    }
+
+    private Set<String> getUniquePermissions(List<String> existingPermissionsList, int i) {
+        String existingStr = existingPermissionsList.get(i);
+
+        // Parse existing permissions
+        Set<String> allPermissions;
+        if (existingStr == null || existingStr.equals("[]")) {
+            allPermissions = new HashSet<>();
+        } else {
+            String content = existingStr.substring(1, existingStr.length() - 1);
+            if (content.isBlank()) {
+                allPermissions = new HashSet<>();
+            } else {
+                allPermissions = new HashSet<>(Arrays.asList(content.split(", ")));
+            }
+        }
+        return allPermissions;
     }
 }

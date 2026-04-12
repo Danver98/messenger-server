@@ -11,15 +11,11 @@ import com.danver.messengerserver.services.permission.PermissionType;
 import com.danver.messengerserver.services.permission.ResourceType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.filter.CharacterEncodingFilter;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 public class ChatServiceImpl implements ChatService {
@@ -44,7 +40,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public Chat createChat(Chat chat) {
         Chat newChat = chatRepository.getOrCreate(chat);
-        List<Long> participants =newChat.getParticipants();
+        List<Long> participants = chat.getParticipants();
         if (participants != null && !participants.isEmpty()) {
             permissionService.grantAuthority(participants, newChat.getId(), ResourceType.CHAT.getValue(),
                     PermissionType.Chat.DEFAULT.getValue());
@@ -112,5 +108,12 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public Chat getAllUsersChat() {
         return this.chatRepository.getAllUsersChat();
+    }
+
+    @Override
+    @Transactional
+    public void deleteParticipants(long chatId, long[] userIds) {
+        this.chatRepository.deleteParticipants(chatId, userIds);
+        this.permissionService.revokeAuthority(userIds, chatId, ResourceType.CHAT.getValue());
     }
 }

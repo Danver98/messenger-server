@@ -52,4 +52,6 @@ public interface ChatRepository {
     void addParticipants(long chatId, long [] users);
 
     Chat getAllUsersChat();
+
+    void deleteParticipants(long chatId, long[] userIds);
 }
