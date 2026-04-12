@@ -80,4 +80,8 @@ public class User implements UserDetails {
     public void setAuthorities(Set<Role> roles) {
         this.roles = roles;
     }
+
+    public String getFullName() {
+        return this.getName() + ' ' + this.getSurname();
+    }
 }

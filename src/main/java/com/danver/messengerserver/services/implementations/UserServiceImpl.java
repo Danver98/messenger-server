@@ -1,6 +1,5 @@
 package com.danver.messengerserver.services.implementations;
 
-import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.models.UserRequestDTO;
 import com.danver.messengerserver.repositories.interfaces.UserRepository;

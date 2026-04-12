@@ -2,11 +2,13 @@ package com.danver.messengerserver.repositories.implementations;
 
 import com.danver.messengerserver.models.Chat;
 import com.danver.messengerserver.models.Message;
+import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.models.util.Direction;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
 import com.danver.messengerserver.repositories.mappers.ChatListLightRowMapper;
 import com.danver.messengerserver.repositories.mappers.ChatListRowMapper;
 import com.danver.messengerserver.repositories.mappers.ChatRowMapper;
+import com.danver.messengerserver.repositories.mappers.UserRowMapper;
 import com.danver.messengerserver.utils.Constants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -336,6 +338,26 @@ public class ChatRepositoryImpl implements ChatRepository {
         } catch (EmptyResultDataAccessException e) {
             return null;
         }
+    }
+
+    @Override
+    public List<User> getParticipants(long id) {
+        String query = """
+            select
+                *
+            from
+                "Users"
+            where
+                "id" = any((
+                    select
+                        array_agg("userId")
+                    from
+                        "UsersChats"
+                    where
+                        "chatId" = ?::bigint
+                )::bigint[])
+        """;
+        return jdbcTemplate.query(query, new UserRowMapper(), id);
     }
 
     @Override
