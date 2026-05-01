@@ -3,6 +3,7 @@ package com.danver.messengerserver.services.permission;
 public enum PermissionType {
     ;
     public enum Chat {
+        ADMIN("Admin"),
         ANY("Any"),
         CREATE("Create"),
         /*

@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -104,6 +105,12 @@ public class UserRepositoryImpl implements UserRepository {
         } else {
             params = search.split(" ");
         }
+        Long[] ids = null;
+        if (filter.getIds() != null) {
+            ids = Arrays.stream(filter.getIds())
+                    .boxed()
+                    .toArray(Long[]::new);
+        }
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("name", params[0], Types.VARCHAR);
         namedParameters.addValue("surname", params.length > 1 ? params[1] : null, Types.VARCHAR);
@@ -112,6 +119,10 @@ public class UserRepositoryImpl implements UserRepository {
         namedParameters.addValue("count", filter.getCount(), Types.BIGINT);
         namedParameters.addValue("id", dto.getId(), Types.BIGINT);
         namedParameters.addValue("surname", dto.getSurname(), Types.VARCHAR);
+        // When dealing with NamedParameterJdbcTemplate arrays in SQL-query, you should explicitly cast
+        // these params to certain array type (e.g. ":ids::bigint[]"), if you have some of null check
+        // (like ":ids is not null" )
+        namedParameters.addValue("ids", ids, Types.ARRAY);
         char compareSign = dto.getDirection() == Direction.FUTURE ? '>' : '<';
         String order = dto.getDirection() == Direction.FUTURE ? "ASC" : "DESC";
         String query = String.format("""
@@ -136,6 +147,13 @@ public class UserRepositoryImpl implements UserRepository {
                                 (u.id, u.surname) %c (:id, :surname)
                         end
                 end
+                and
+                case
+                    when :id is null and :ids::bigint[] is not null
+                        then u."id" = any(:ids::bigint[])
+                    else
+                        true
+                end
                 -- search
                 and
                 case
@@ -154,6 +172,42 @@ public class UserRepositoryImpl implements UserRepository {
                              or u.surname ilike '%%' || :surname || '%%')
                     else
                         true
+                end
+                and
+                -- chatId
+                case
+                    when :chatId is null
+                        then true
+                    when :exclude is not true
+                        then
+                            u.id = any((
+                                select
+                                   array_agg(uc."userId")
+                                from
+                                    "UsersChats" uc
+                                where
+                                    uc."chatId" = :chatId
+                            )::bigint[])
+                    else
+                        not (u.id = any((
+                            select
+                               array_agg(uc."userId")
+                            from
+                                "UsersChats" uc
+                            where
+                                uc."chatId" = :chatId
+                        )::bigint[]))
+                        
+                        -- One more filtration variant for chatId filtration
+                        -- exists (
+                        --     select
+                        --         1
+                        --     from
+                        --         "UsersChats" uc
+                        --     where
+                        --         uc."chatId" = :chatId
+                        --         and uc."userId" = u."id"
+                        -- )
                 end
             order by
                 surname %s

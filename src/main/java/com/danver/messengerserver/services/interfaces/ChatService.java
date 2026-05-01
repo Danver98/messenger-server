@@ -17,6 +17,8 @@ public interface ChatService {
       */
      Chat createChat(Chat chat);
 
+     Chat createChat(Chat chat, User author);
+
      List<Chat> getChats(ChatPagingDTO dto);
 
      default List<Chat> getChatsLight(ChatPagingDTO dto) {

@@ -7,6 +7,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class MessengerServerApplication {
 
     public static void main(String[] args) {
+        // Preventing from ClassCastException during development
+        System.setProperty("spring.devtools.restart.enabled", "false");
         SpringApplication.run(MessengerServerApplication.class, args);
     }
 }

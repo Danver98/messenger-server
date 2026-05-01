@@ -36,8 +36,14 @@ server:
         key-store-password: ${APP_SERVER_SSL_KEY_STORE_PASSWORD}
         key-store-type: PKCS12
 
+
 # Spring
 spring:
+    devtools:
+        restart:
+            # This is a hack for casting UserDetails to CustomUserDetails class to prevent ClassCastException.
+            # Eligible in development only
+            enabled: false
     data:
         redis:
             host: localhost

@@ -57,9 +57,9 @@ public class ChatRepositoryImpl implements ChatRepository {
     public Chat createChat(Chat chat) {
         String query = """
         insert into
-            "Chats" (name, "avatarUrl", private, draft)
+            "Chats" (name, "avatarUrl", private, draft, "authorId", "canAddUsers")
         values
-            (:name, :avatar, :private, true)
+            (:name, :avatar, :private, true, :authorId, :canAddUsers)
         on conflict
             do nothing
         returning id
@@ -68,6 +68,8 @@ public class ChatRepositoryImpl implements ChatRepository {
         params.addValue("name", chat.getName(), Types.VARCHAR);
         params.addValue("avatar", chat.getAvatarUrl(), Types.VARCHAR);
         params.addValue("private", chat.isPrivate(), Types.BOOLEAN);
+        params.addValue("authorId", chat.getAuthorId(), Types.BIGINT);
+        params.addValue("canAddUsers", chat.isCanAddUsers(), Types.BOOLEAN);
         Long id = namedParameterJdbcTemplate.queryForObject(query, params, Long.class);
         if (id == null) {
             return null;
@@ -363,10 +365,10 @@ public class ChatRepositoryImpl implements ChatRepository {
     @Override
     @Transactional
     public void updateChat(Chat chat) {
-        String query = "UPDATE \"Chats\" SET name = ?, \"avatarUrl\" = ?, private = ? WHERE id = ?";
-        jdbcTemplate.update(query, chat.getName(), chat.getAvatarUrl(), chat.getId(), chat.isPrivate());
-        query = "DELETE FROM \"UsersChats\" WHERE \"chatId\" = ?";
-        jdbcTemplate.update(query, chat.getId());
+        String query = "UPDATE \"Chats\" SET name = ?, \"avatarUrl\" = ?, private = ?, \"canAddUsers\" = ? WHERE id = ?";
+        jdbcTemplate.update(query, chat.getName(), chat.getAvatarUrl(), chat.isPrivate(), chat.isCanAddUsers(), chat.getId());
+//        query = "DELETE FROM \"UsersChats\" WHERE \"chatId\" = ?";
+//        jdbcTemplate.update(query, chat.getId());
 /*        query = "INSERT INTO UsersChats VALUES (?, ?)";
         List<Object[]> usersChats = chat.getParticipants().stream()
                 .map(user -> new Object[]{user.getId(), chat.getId()}).collect(Collectors.toList());
@@ -424,7 +426,7 @@ public class ChatRepositoryImpl implements ChatRepository {
                     "userId" = data."userId"
             """;
         MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("chatId", messages.get(0).getChatId());
+        params.addValue("chatId", messages.getFirst().getChatId());
         params.addValue("ids", messages.stream().map(Message::getId).toArray());
         jdbcTemplate.update(query, namedParameterJdbcTemplate);
     }

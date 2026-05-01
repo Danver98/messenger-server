@@ -21,6 +21,11 @@ public class Message {
     private String id;
     private long chatId;
     private User author;
+    /**
+     * In private chats it indicates who the message was sent to.
+     * In public chats it serves as additional info for special message types
+     * (e.g. which user was affected by this action)
+     */
     private long receiverId;
     private Instant time;
     private MessageData data;
@@ -36,7 +41,8 @@ public class Message {
         @JsonEnumDefaultValue
         CHAT(3),
         JOIN(4),
-        LEAVE(5);
+        LEAVE(5),
+        EXCLUDE(6);
 
         private final byte value;
         private static final Map<Byte, MessageType> map = new HashMap<>();

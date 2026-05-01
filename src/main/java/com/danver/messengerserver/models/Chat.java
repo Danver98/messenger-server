@@ -8,17 +8,20 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 public class Chat {
+    @Setter
     @Getter
     private long id;
+    @Setter
     @Getter
     private String name;
+    @Setter
     @Getter
     @JsonProperty("avatar")
     @JsonAlias("avatar")
     private String avatarUrl;
+    @Setter
     @JsonProperty("time")
     @JsonAlias("time")
     private Instant lastChanged;
@@ -32,6 +35,7 @@ public class Chat {
     private List<Long> participants;
     @Getter
     private List<Message> messages;
+    @Setter
     @Getter
     private Message lastMessage;
     @Getter
@@ -44,6 +48,14 @@ public class Chat {
     @Getter
     @Setter
     private Message lastReadMsg;
+
+    @Getter
+    @Setter
+    private boolean canAddUsers;
+
+    @Getter
+    @Setter
+    private long authorId;
 
     public Chat() {
 
@@ -58,31 +70,11 @@ public class Chat {
         this.draft = draft;
     }
 
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setAvatarUrl(String avatarUrl) {
-        this.avatarUrl = avatarUrl;
-    }
-
     public void setParticipants(List<Long> participants) {
 
         this.participants = participants;
         if (this.participants.size() > 2) {
             this.setPrivate(false);
         }
-    }
-
-    public void setLastChanged(Instant lastChanged) {
-        this.lastChanged = lastChanged;
-    }
-
-    public void setLastMessage(Message lastMessage) {
-        this.lastMessage = lastMessage;
     }
 }

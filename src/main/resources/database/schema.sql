@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS "Chats"
     "avatarUrl" varchar(200),
     "lastChanged" timestamp with time zone, -- supposed to be the time when last message was sent
     "private" boolean,
-    "draft" boolean default true
+    "draft" boolean default true,
+    "canAddUsers" boolean default false
 );
 -- Should we create index on LastChanged if it's changed often?
 

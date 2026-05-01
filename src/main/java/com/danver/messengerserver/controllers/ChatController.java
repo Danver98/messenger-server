@@ -1,11 +1,13 @@
 package com.danver.messengerserver.controllers;
 
-import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.exceptions.StorageException;
 import com.danver.messengerserver.models.*;
 import com.danver.messengerserver.services.interfaces.ChatService;
 import com.danver.messengerserver.services.interfaces.MessageService;
 import com.danver.messengerserver.services.interfaces.StorageService;
+import com.danver.messengerserver.services.interfaces.UserService;
+import com.danver.messengerserver.services.permission.PermissionService;
+import com.danver.messengerserver.services.permission.ResourceType;
 import com.danver.messengerserver.utils.Constants;
 import com.danver.messengerserver.utils.FileStorageOptions;
 import com.danver.messengerserver.utils.FileUtils;
@@ -17,20 +19,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
-
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.Principal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/chats")
@@ -38,30 +36,26 @@ public class ChatController {
     private final ChatService chatService;
     private final MessageService messageService;
     private final StorageService storageService;
+    private final UserService userService;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+
+    private final PermissionService permissionService;
 
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class.getName());
 
     @Autowired
-    public ChatController(ChatService chatService, MessageService messageService, @Qualifier("s3Storage") StorageService storageService, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
+    public ChatController(ChatService chatService, MessageService messageService, @Qualifier("s3Storage") StorageService storageService,
+                          UserService userService, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper,
+                          PermissionService permissionService) {
         this.chatService = chatService;
         this.messageService = messageService;
         this.storageService = storageService;
+        this.userService = userService;
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
+        this.permissionService = permissionService;
     }
-
-    @PostMapping("/secret")
-    String getSecret(Authentication authentication,
-                     Principal principal,
-                     @AuthenticationPrincipal UserDetails userDetails,
-                     @Nullable @RequestBody ChatPagingDTO dto) {
-        return "This is a secret message!";
-    }
-
-    // TODO: use @Header('sessionId') or @SendToUser (less preferable) for security
-    // Maybe we should split methods to send data either to private chat or to group chat (look https://www.baeldung.com/spring-websockets-send-message-to-user)
 
     @PostMapping("/")
     List<Chat> list(@RequestBody ChatPagingDTO dto) {
@@ -78,13 +72,64 @@ public class ChatController {
         return chatService.getChat(id, userId);
     }
 
+    @GetMapping("/{id}/users/permissions")
+    List<String> getPermissions(@PathVariable("id") long chatId, @AuthenticationPrincipal UserDetails userDetails) {
+        return permissionService.getPermissions(userDetails, chatId, ResourceType.CHAT.getValue());
+    }
+
     @PostMapping("/create")
-    Chat createChat(@RequestBody Chat chat) {
-        return chatService.createChat(chat);
+    Chat createChat(@RequestBody Chat chat, @AuthenticationPrincipal UserDetails userDetails) {
+        Chat newChat = chatService.createChat(chat, (User) userDetails);
+        List<Long> participants = chat.getParticipants();
+        if (participants == null || participants.isEmpty()) {
+            return newChat;
+        }
+        if (chat.isPrivate() || newChat.isPrivate()) {
+            // We don't notify private chat creation, first sent message will do that
+            return newChat;
+        }
+        notifyChatIsCreated(chat, (User) userDetails, newChat, participants);
+        return newChat;
+    }
+
+    private void notifyChatIsCreated(Chat chat, User author, Chat newChat, List<Long> participants) {
+        String privateDestination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
+        MessageData messageData = MessageData.builder()
+                .type(MessageDataType.DEFAULT)
+                .value("%s created chat \"%s\"".formatted(author.getFullName(), chat.getName()))
+                .build();
+        Message messageDraft = Message.builder()
+                .type(Message.MessageType.CREATION)
+                .chatId(newChat.getId())
+                .data(messageData)
+                .author(author)
+                // We are suffering problems when setting receiverId
+                //.receiverId(newParticipant.getId())
+                .build();
+        Message message = this.messageService.createMessage(messageDraft);
+        MessageDTO messageDTO = MessageDTO.builder()
+                .message(message)
+                .chat(chat)
+                .chatName(chat.getName())
+                .chatIsPrivate(chat.isPrivate())
+                .build();
+
+        for (Long participant : participants) {
+            messagingTemplate.convertAndSendToUser(
+                    Long.toString(participant),
+                    privateDestination,
+                    messageDTO
+            );
+        }
     }
 
     @PutMapping("/{id}")
-    void updateChat(@RequestParam long userId, @RequestBody Chat chat) {
+    void updateChat( @RequestBody Chat chat) {
+        chatService.updateChat(chat);
+    }
+
+    @PatchMapping("/{id}")
+    void updateChatPatch(@PathVariable long id, @RequestBody Chat chat) {
         chatService.updateChat(chat);
     }
 
@@ -96,7 +141,7 @@ public class ChatController {
     }
 
     @DeleteMapping("/{id}")
-    void deleteChat(@RequestParam long userId, @PathVariable long id) {
+    void deleteChat(@PathVariable long id) {
         chatService.deleteChat(id);
     }
 
@@ -106,20 +151,119 @@ public class ChatController {
     }
 
     @PostMapping("/add")
-    ResponseEntity<?> addParticipants(@RequestBody ChatRequestDTO dto) {
+    ResponseEntity<?> addParticipants(@RequestBody ChatRequestDTO dto, @AuthenticationPrincipal UserDetails userDetails) {
+        List<User> oldParticipants = chatService.getParticipants(dto.getChatId());
+        Set<Long> oldParticipantsIds = oldParticipants.stream().map(User::getId).collect(Collectors.toUnmodifiableSet());
         this.chatService.addParticipants(dto.getChatId(), dto.getUsers());
+        if (dto.getUsers() == null) {
+            return ResponseEntity.ok().build();
+        }
+        String privateDestination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
+        UserRequestFilter userFilter = UserRequestFilter.builder()
+                .ids(dto.getUsers())
+                .build();
+        UserRequestDTO userDto = UserRequestDTO.builder()
+                .filter(userFilter)
+                .build();
+        List<User> newParticipants = userService.list(userDto);
+        User user = (User) userDetails;
+        Chat chat = chatService.getChat(dto.getChatId(), user.getId());
+
+        // Notify newly added users
+        for (User newParticipant : newParticipants) {
+            if (oldParticipantsIds.contains(newParticipant.getId())) {
+                continue;
+            }
+            MessageData messageData = MessageData.builder()
+                    .type(MessageDataType.DEFAULT)
+                    .value("%s added %s to chat".formatted(user.getFullName(), newParticipant.getFullName()))
+                    .build();
+            Message messageDraft = Message.builder()
+                    .type(Message.MessageType.INVITATION)
+                    .chatId(dto.getChatId())
+                    .data(messageData)
+                    .author(user)
+                    // We are suffering problems when setting receiverId
+                    //.receiverId(newParticipant.getId())
+                    .build();
+            Message message = this.messageService.createMessage(messageDraft);
+            MessageDTO messageDTO = MessageDTO.builder()
+                    .message(message)
+                    .chat(chat)
+                    .chatName(chat.getName())
+                    .chatIsPrivate(chat.isPrivate())
+                    .build();
+            messagingTemplate.convertAndSendToUser(
+                    Long.toString(newParticipant.getId()),
+                    privateDestination,
+                    messageDTO
+            );
+            // Now notify users already present in the chat
+            // TODO:  We suppose newly added users are not subscribed to this queue yet, so they won't get duplicated messages
+            messagingTemplate.convertAndSend(
+                    Constants.MESSAGE_BROKER_TOPIC_PREFIX + "/chats/" + dto.getChatId() + "/messages",
+                    messageDTO
+            );
+        }
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}/users")
-    ResponseEntity<?> deleteParticipants(@PathVariable long id, @RequestParam long[] userId) {
+    ResponseEntity<?> deleteParticipants(@PathVariable long id, @RequestParam long[] userId, @AuthenticationPrincipal UserDetails userDetails) {
         this.chatService.deleteParticipants(id, userId);
+        UserRequestFilter userFilter = UserRequestFilter.builder()
+                .ids(userId)
+                .build();
+        UserRequestDTO userDto = UserRequestDTO.builder()
+                .filter(userFilter)
+                .build();
+        List<User> oldParticipants = userService.list(userDto);
+
+        User user = (User) userDetails;
+        Chat chat = chatService.getChat(id, user.getId());
+
+        // Notify newly added users
+        for (User participant : oldParticipants) {
+            boolean leaveYourself = userId.length == 1 && participant.getId() == user.getId();
+            String deleteMsg = leaveYourself ?
+                    "%s left the chat".formatted(user.getFullName())
+                    : "%s excluded %s from the chat".formatted(user.getFullName(), participant.getFullName());
+            Message.MessageType messageType = leaveYourself ?
+                    Message.MessageType.LEAVE
+                    : Message.MessageType.EXCLUDE;
+
+            MessageData messageData = MessageData.builder()
+                    .type(MessageDataType.DEFAULT)
+                    .value(deleteMsg)
+                    .build();
+            Message messageDraft = Message.builder()
+                    .type(messageType)
+                    .chatId(id)
+                    .data(messageData)
+                    .author(user)
+                    //.receiverId(participant.getId())
+                    .build();
+            Message message = this.messageService.createMessage(messageDraft);
+            MessageDTO messageDTO = MessageDTO.builder()
+                    .message(message)
+                    .chat(chat)
+                    .chatName(chat.getName())
+                    .chatIsPrivate(chat.isPrivate())
+                    .build();
+            // Now notify users already present in the chat
+            // TODO:  We suppose newly added users are not subscribed to this queue yet, so they won't get duplicated messages
+            messagingTemplate.convertAndSend(
+                    Constants.MESSAGE_BROKER_TOPIC_PREFIX + "/chats/" + id + "/messages",
+                    messageDTO
+            );
+        }
         return ResponseEntity.ok().build();
     }
 
     /**
      * Method for uploading attachments. Used in conjunction with sendMessage/sendMessage private.
      * It's basically adjusted for uploading images only and needs further development to support other formats
+     *
      * @param file
      * @return url of a created resource or null if failed
      */
@@ -128,7 +272,7 @@ public class ChatController {
                                        @RequestParam Long userId,
                                        @RequestParam Long chatId) {
         if (FileUtils.isImage(file) || FileUtils.isAudio(file) || FileUtils.isVideo(file) ||
-            FileUtils.isValid(file)) {
+                FileUtils.isValid(file)) {
             try {
                 String path = "chats/" + chatId + "/attachments";
                 FileStorageOptions options = FileStorageOptions
@@ -147,7 +291,7 @@ public class ChatController {
 
     /*
         Former MessageController
-     */
+    */
 
     @PostMapping("/{id}/messages")
     ResponseEntity<List<Message>> getMessagesPaged(@PathVariable long id, @RequestBody MessageRequestDTO dto) {
@@ -160,51 +304,10 @@ public class ChatController {
         try {
             Message message = messageService.createMessage(dto);
             return new ResponseEntity<>(message, HttpStatus.OK);
-        } catch (Exception e) {
+        } catch (Exception ignored) {
 
         }
         return null;
-    }
-
-    @MessageMapping("/chats/create-invite")
-    ResponseEntity<?> createChat(@Payload String messageDTO) {
-        try {
-            MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
-            Message message = dto.getMessage();
-            if (message.getType() != Message.MessageType.CREATION) {
-                return null;
-            }
-            Long [] participants;
-            Chat chat = dto.getChat();
-            if (chat == null) {
-                List<User> chatUsers = chatService.getParticipants(message.getChatId());
-                if (chatUsers == null) {
-                    return null;
-                }
-                participants = chatUsers.stream().map(User::getId)
-                        .toArray(Long[]::new);
-            } else {
-                participants = chat.getParticipants()
-                        .toArray(Long[]::new);
-            }
-            Message created = messageService.createMessage(dto.getMessage());
-            dto.setMessage(created);
-            String destination = Constants.MESSAGE_BROKER_QUEUE_PREFIX + "/chats/messages";
-            for (long user: participants) {
-                if (chat != null && chat.isPrivate() && user == message.getAuthor().getId()) {
-                    // Exclude message author from receivers list, if private chat given
-                    continue;
-                }
-                messagingTemplate.convertAndSendToUser(
-                        Long.toString(user),
-                        destination,
-                        dto
-                );
-            }
-            return new ResponseEntity<>(dto, HttpStatus.OK);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
     }
 
     @MessageMapping("/chats/private/send-message")
@@ -233,8 +336,6 @@ public class ChatController {
 
     @MessageMapping("/chats/public/send-message")
     ResponseEntity<?> sendMessage(@Payload String messageDTO) {
-        // Unfortunately cannot find a workaround to pass MessageDTO directly
-        // TODO: append auxiliary info (ex. author's avatar url, name, surname) if absent
         try {
             MessageDTO dto = objectMapper.readValue(messageDTO, MessageDTO.class);
             Message message = messageService.createMessage(dto.getMessage());
@@ -247,14 +348,5 @@ public class ChatController {
         } catch (JsonProcessingException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-    }
-
-    @MessageMapping("/chat/add-user")
-    public void addUser(@Payload MessageDTO messageDTO) {
-    }
-
-    @Scheduled(fixedRate = 60000)
-    void clearActiveChats() {
-        logger.info("ClearActiveChats task running: thread id - {}, thread name - {}", Thread.currentThread().getId(), Thread.currentThread().getName());
     }
 }

@@ -1,6 +1,5 @@
 package com.danver.messengerserver.services.implementations;
 
-import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.services.interfaces.ConfigService;
 import com.danver.messengerserver.utils.Constants;
 import org.slf4j.Logger;
@@ -20,7 +19,7 @@ public class ConfigServiceImpl implements ConfigService {
     private final Environment env;
     private final Map<String, Object> configInfo;
 
-    private static final Logger logger = LoggerFactory.getLogger(MessengerServerApplication.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(ConfigServiceImpl.class.getName());
 
     @Autowired
     public ConfigServiceImpl(Environment env) {

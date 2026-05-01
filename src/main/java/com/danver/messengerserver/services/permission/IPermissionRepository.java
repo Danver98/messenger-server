@@ -57,4 +57,6 @@ public interface IPermissionRepository<U extends UserDetails, R> {
         return 0;
     }
 
+    public int deletePermission(List<Long> users, Long resource, int resourceType, String permission);
+
 }

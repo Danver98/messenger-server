@@ -8,6 +8,15 @@ public interface IPermissionService<U extends UserDetails, R> {
 
     boolean isAuthorized(U principal, R resource, int resourceType, String permission);
 
+    /**
+     *
+     * @param principal
+     * @param resource
+     * @param resourceType
+     * @return permissions for user for given resource object
+     */
+    List<String> getPermissions(U principal, R resource, int resourceType);
+
     // ==================== GRANTING AUTHORITIES ====================
     /**
      * Adds certain permissions to the list of permissions
@@ -65,4 +74,6 @@ public interface IPermissionService<U extends UserDetails, R> {
     }
 
     int revokeAuthority(long[] userIds, long resourceId, int resourceType);
+
+    public int revokeAuthority(List<Long> users, Long resource, int resourceType, String permission);
 }

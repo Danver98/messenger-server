@@ -166,6 +166,41 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         return deletedCount;
     }
 
+    @Override
+    public int deletePermission(List<Long> users, Long resource, int resourceType, String permission) {
+        if (users == null || users.isEmpty()) {
+            log.debug("Empty user IDs array, nothing to delete");
+            return 0;
+        }
+        long startTime = System.nanoTime();
+        // Execute DB and Redis operations in parallel
+        CompletableFuture<Integer> dbFuture = CompletableFuture.supplyAsync(() ->
+                deletePermissionFromDB(users, resource, resourceType, permission));
+
+        CompletableFuture<Integer> redisFuture = CompletableFuture.supplyAsync(() ->
+                deletePermissionFromRedis(users, resource, resourceType, Collections.singletonList(permission)));
+
+        try {
+            CompletableFuture.allOf(dbFuture, redisFuture).join();
+            int dbResult = dbFuture.get();
+            int redisResult = redisFuture.get();
+            if (redisResult < 0) {
+                // TODO: add to queue for later update
+            }
+
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            log.info("Batch delete: {} users, {} permissions, {} ms | DB: {}, Redis: {}",
+                    users.size(), 1, durationMs, dbResult, redisResult);
+
+            return (dbResult < 0 || redisResult < 0) ? -1 : 0;
+
+        } catch (InterruptedException | ExecutionException e) {
+            Thread.currentThread().interrupt();
+            log.error("Batch delete failed for {} users", users.size(), e);
+            throw new CompletableFutureException(e);
+        }
+    }
+
     /**
      * Batch add permissions for multiple users with multiple permissions
      * This is the most efficient method for bulk operations
@@ -311,6 +346,27 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         return updatedCount != null ? updatedCount : 0;
     }
 
+    public int deletePermissionFromDB(List<Long> users, Long resource, int resourceType, String permission) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("userIds", users.toArray(new Long[0]));
+        params.addValue("resource", resource);
+        params.addValue("resourceType", resourceType);
+        params.addValue("permission", permission);
+
+        String sql = """
+            update
+                "UsersPermissions"
+            set
+                "permissions" = array_remove("permissions", :permission::text)
+            where
+                "user" = any(:userIds)
+                and "resource" is not distinct from :resource
+                and "resource_type" = :resourceType
+            """;
+
+        return namedParameterJdbcTemplate.update(sql, params);
+    }
+
     // ==================== REDIS OPERATIONS ====================
 
     private int addPermissionsToRedis(List<UserDetails> principals, Long resourceId, int resourceType, List<String> permissions) {
@@ -376,6 +432,67 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         }
     }
 
+    private int deletePermissionFromRedis(List<Long> principals, Long resourceId, int resourceType, List<String> permissions) {
+        if (principals.isEmpty() || permissions.isEmpty()) {
+            return 0;
+        }
+        try {
+            HashOperations<String, String, String> hashOps = redis.opsForHash();
+
+            // Prepare keys
+            List<String> keys = principals.stream()
+                    .map(p -> buildRedisKey(p, resourceId, resourceType))
+                    .collect(Collectors.toList());
+
+            // Batch get existing permissions
+            List<String> existingPermissionsList = hashOps.multiGet(PERMISSION_KEY, keys);
+
+            // Prepare updates
+            Map<String, String> updates = new HashMap<>();
+            int totalDeletedPermissions = 0;
+
+            for (int i = 0; i < principals.size(); i++) {
+                String key = keys.get(i);
+                Set<String> allPermissions = getUniquePermissions(existingPermissionsList, i);
+
+                int beforeSize = allPermissions.size();
+                permissions.forEach(allPermissions::remove);
+                int deletedCount = beforeSize - allPermissions.size();
+
+                if (deletedCount > 0) {
+                    String newValue = "[" + String.join(", ", allPermissions) + "]";
+                    updates.put(key, newValue);
+                    totalDeletedPermissions += deletedCount;
+                }
+            }
+
+            // Batch update only if there are changes
+            if (!updates.isEmpty()) {
+                // Process in batches of 1000
+                Map<String, String> batchUpdates = new HashMap<>();
+                for (Map.Entry<String, String> entry : updates.entrySet()) {
+                    batchUpdates.put(entry.getKey(), entry.getValue());
+                    if (batchUpdates.size() >= REDIS_BATCH_SIZE) {
+                        hashOps.putAll(PERMISSION_KEY, batchUpdates);
+                        batchUpdates.clear();
+                    }
+                }
+                if (!batchUpdates.isEmpty()) {
+                    hashOps.putAll(PERMISSION_KEY, batchUpdates);
+                }
+
+                log.debug("Redis batch: updated {} keys, {} new permissions", updates.size(), totalDeletedPermissions);
+            }
+            return totalDeletedPermissions;
+        } catch (RedisConnectionFailureException ex) {
+            log.error("Redis connection failed for batch update", ex);
+            return -1;
+        } catch (Exception ex) {
+            log.error("Unexpected Redis error", ex);
+            return -1;
+        }
+    }
+
     private void cachePermissionInRedis(String key, List<String> permissions) {
         try {
             HashOperations<String, String, String> hashOps = redis.opsForHash();
@@ -413,7 +530,7 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
 
     // ==================== SCHEDULED CACHE REFRESH ====================
 
-    @Scheduled(fixedDelay = 180000, initialDelay = 60000)
+    @Scheduled(fixedDelay = 300000, initialDelay = 0)
     public void refreshRedisCache() {
         long startTime = System.nanoTime();
         log.info("Starting Redis permission cache refresh");

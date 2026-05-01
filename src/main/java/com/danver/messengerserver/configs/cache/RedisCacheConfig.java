@@ -14,6 +14,8 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,10 +47,14 @@ public class RedisCacheConfig implements CachingConfigurer {
 
     @Bean
     public RedisCacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
+        JdkSerializationRedisSerializer contextAwareRedisSerializer = new JdkSerializationRedisSerializer(getClass().getClassLoader());
+
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .prefixCacheNameWith(this.getClass().getPackageName() + ".")
                 .entryTtl(Duration.ofHours(1))
                 .disableCachingNullValues();
+                // Custom serializer is used to bypass ClassCastException with Redis Cache and Spring Boot DevTools
+                //.serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(contextAwareRedisSerializer));
 
         RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(connectionFactory);
         RedisCacheManager.RedisCacheManagerBuilder redisCacheManagerBuilder = RedisCacheManager.builder(cacheWriter)

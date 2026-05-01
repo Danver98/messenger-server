@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -51,8 +52,6 @@ public class JwtTokenFilter extends OncePerRequestFilter {
         }
         Claims claims = jwtUtil.getClaims(token);
 
-        // TODO: use Redis or Some in-memory storage to get full info about user
-        //  (substitution for DB call UserDetailsService.loadUserByUsername()
         UserDetails userDetails = userService.loadUserByUsername((String) claims.get(Constants.USER_JWT_LOGIN_KEY));
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                 userDetails,
