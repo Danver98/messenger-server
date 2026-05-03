@@ -12,4 +12,5 @@ public class ChatRequestDTO {
     long userId;
     String messageId;
     long[] users;
+    String joinToken;
 }

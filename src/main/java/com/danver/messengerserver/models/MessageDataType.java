@@ -13,7 +13,8 @@ public enum MessageDataType {
     IMAGE( 3),
     VIDEO(4),
     FILE(5),
-    AUDIO(6);
+    AUDIO(6),
+    JOIN_LINK(7);
 
     private final byte value;
     private static final Map<Byte, MessageDataType> map = new HashMap<>();

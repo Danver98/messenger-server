@@ -10,9 +10,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
@@ -28,9 +30,13 @@ public class MessageRepositoryImpl implements MessageRepository {
     private static final Logger logger = LoggerFactory.getLogger(MessageRepositoryImpl.class.getName());
     private final JdbcTemplate jdbcTemplate;
 
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
     @Autowired
-    public MessageRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public MessageRepositoryImpl(JdbcTemplate jdbcTemplate,
+                                 NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -82,6 +88,37 @@ public class MessageRepositoryImpl implements MessageRepository {
                 """, compareSign, compareSign, order);
 
         return namedParameterJdbcTemplate.query(query, new BeanPropertySqlParameterSource(dtoProper), new MessageRowMapper());
+    }
+
+    @Override
+    public Message getLastMessage(MessageRequestDTO dto) {
+        String query = """
+            SELECT
+                "Messages".id,
+                "authorId",
+                "name",
+                surname,
+                "avatarUrl",
+                "chatId",
+                type,
+                value,
+                value_type,
+                "lastChanged",
+                null "read"
+            FROM
+                "Messages"
+            INNER JOIN "Users"
+                ON "Messages"."authorId" = "Users".id
+            WHERE
+                "chatId" = :chatId
+            ORDER BY
+                "lastChanged" desc
+            LIMIT
+                1
+        """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("chatId", dto.getChatId(), Types.BIGINT);
+        return this.namedParameterJdbcTemplate.queryForObject(query, params, new MessageRowMapper());
     }
 
     public List<Message> getMessagesFirst(MessageRequestDTO dto) {

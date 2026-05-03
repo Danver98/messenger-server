@@ -1,9 +1,6 @@
 package com.danver.messengerserver.services.interfaces;
 
-import com.danver.messengerserver.models.Chat;
-import com.danver.messengerserver.models.ChatPagingDTO;
-import com.danver.messengerserver.models.Message;
-import com.danver.messengerserver.models.User;
+import com.danver.messengerserver.models.*;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,4 +50,8 @@ public interface ChatService {
      Chat getAllUsersChat();
 
      void deleteParticipants(long id, long[] userId);
+
+     String generateChatInvitationLink(long id, User user, String baseUrl);
+
+     ChatRequestDTO getJoinChatInfo(User user, String encryptedToken);
 }

@@ -12,6 +12,8 @@ public interface MessageService {
 
     List<Message> getMessages(MessageRequestDTO dto);
 
+    Message getLastMessage(MessageRequestDTO dto);
+
     /**
      *
      * @return message with updated absent fields

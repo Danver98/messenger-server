@@ -15,6 +15,15 @@ jwt:
     iss: ${APP_JWT_ISSUER}
     secret: ${APP_JWT_BASE_SECRET}
     sign-alg: HS256
+    chat-invitation:
+        exp-in-millis: 604800000 # 1 week
+        iss: ${APP_JWT_ISSUER}
+        secret: ${APP_CHAT_INVITATION_JWT_KEY}
+        sign-alg: HS256
+
+# Secrets
+secrets:
+    encryption-util: ${APP_ENCRYPTION_UTIL_SECRET_KEY}
 
 # Server
 server:

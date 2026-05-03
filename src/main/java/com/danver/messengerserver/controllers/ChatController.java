@@ -13,6 +13,7 @@ import com.danver.messengerserver.utils.FileStorageOptions;
 import com.danver.messengerserver.utils.FileUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -152,6 +153,11 @@ public class ChatController {
 
     @PostMapping("/add")
     ResponseEntity<?> addParticipants(@RequestBody ChatRequestDTO dto, @AuthenticationPrincipal UserDetails userDetails) {
+        String joinToken = dto.getJoinToken();
+        if (joinToken != null) {
+            // User joins chat himself
+            dto = chatService.getJoinChatInfo((User) userDetails, joinToken);
+        }
         List<User> oldParticipants = chatService.getParticipants(dto.getChatId());
         Set<Long> oldParticipantsIds = oldParticipants.stream().map(User::getId).collect(Collectors.toUnmodifiableSet());
         this.chatService.addParticipants(dto.getChatId(), dto.getUsers());
@@ -168,23 +174,24 @@ public class ChatController {
         List<User> newParticipants = userService.list(userDto);
         User user = (User) userDetails;
         Chat chat = chatService.getChat(dto.getChatId(), user.getId());
+        Message.MessageType messageType = joinToken != null ? Message.MessageType.JOIN : Message.MessageType.INVITATION;
 
         // Notify newly added users
         for (User newParticipant : newParticipants) {
             if (oldParticipantsIds.contains(newParticipant.getId())) {
                 continue;
             }
+            String messageValue = joinToken != null ? "%s joined the chat via invitation link".formatted(user.getFullName())
+                    : "%s added %s to chat".formatted(user.getFullName(), newParticipant.getFullName());
             MessageData messageData = MessageData.builder()
                     .type(MessageDataType.DEFAULT)
-                    .value("%s added %s to chat".formatted(user.getFullName(), newParticipant.getFullName()))
+                    .value(messageValue)
                     .build();
             Message messageDraft = Message.builder()
-                    .type(Message.MessageType.INVITATION)
+                    .type(messageType)
                     .chatId(dto.getChatId())
                     .data(messageData)
                     .author(user)
-                    // We are suffering problems when setting receiverId
-                    //.receiverId(newParticipant.getId())
                     .build();
             Message message = this.messageService.createMessage(messageDraft);
             MessageDTO messageDTO = MessageDTO.builder()
@@ -222,7 +229,7 @@ public class ChatController {
         User user = (User) userDetails;
         Chat chat = chatService.getChat(id, user.getId());
 
-        // Notify newly added users
+        // Notify participants and deleted users
         for (User participant : oldParticipants) {
             boolean leaveYourself = userId.length == 1 && participant.getId() == user.getId();
             String deleteMsg = leaveYourself ?
@@ -241,7 +248,7 @@ public class ChatController {
                     .chatId(id)
                     .data(messageData)
                     .author(user)
-                    //.receiverId(participant.getId())
+                    .receiverId(participant.getId())
                     .build();
             Message message = this.messageService.createMessage(messageDraft);
             MessageDTO messageDTO = MessageDTO.builder()
@@ -257,6 +264,23 @@ public class ChatController {
                     messageDTO
             );
         }
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/invitation-link")
+    String getChatInvitationLink(@PathVariable long id, @AuthenticationPrincipal UserDetails userDetails,
+                                 HttpServletRequest request) {
+        String url = request.getRequestURL().toString();
+        return chatService.generateChatInvitationLink(id, (User) userDetails, url);
+    }
+
+    @PostMapping("/{id}/invitation-link")
+    ResponseEntity<?> joinChat(@PathVariable long id, @RequestParam String token, @RequestParam(required = false) String chatName,
+                               @AuthenticationPrincipal UserDetails userDetails) {
+        ChatRequestDTO dto = ChatRequestDTO.builder()
+                .joinToken(token)
+                .build();
+        this.addParticipants(dto, userDetails);
         return ResponseEntity.ok().build();
     }
 

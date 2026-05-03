@@ -47,7 +47,7 @@ public interface ChatRepository {
      */
     Chat getOrCreate(Chat chat);
 
-    void addParticipants(long chatId, long [] users);
+    void addParticipants(long chatId, long [] users, String messageId);
 
     Chat getAllUsersChat();
 

@@ -1,31 +1,48 @@
 package com.danver.messengerserver.services.implementations;
 
-import com.danver.messengerserver.models.Chat;
-import com.danver.messengerserver.models.ChatPagingDTO;
-import com.danver.messengerserver.models.Message;
-import com.danver.messengerserver.models.User;
+import com.danver.messengerserver.auth.JwtUtil;
+import com.danver.messengerserver.models.*;
 import com.danver.messengerserver.repositories.interfaces.ChatRepository;
+import com.danver.messengerserver.repositories.interfaces.MessageRepository;
 import com.danver.messengerserver.services.interfaces.ChatService;
+import com.danver.messengerserver.services.interfaces.UserService;
 import com.danver.messengerserver.services.permission.PermissionService;
 import com.danver.messengerserver.services.permission.PermissionType;
 import com.danver.messengerserver.services.permission.ResourceType;
+import com.danver.messengerserver.utils.Encryption;
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class ChatServiceImpl implements ChatService {
 
     private final ChatRepository chatRepository;
     private final PermissionService permissionService;
+    private final MessageRepository messageRepository;
+    private final Environment env;
+    private final Encryption encryption;
+
+    private final UserService userService;
 
     @Autowired
-    public ChatServiceImpl(ChatRepository chatRepository, PermissionService permissionService) {
+    public ChatServiceImpl(ChatRepository chatRepository, PermissionService permissionService, MessageRepository messageRepository, Environment env, Encryption encryption,
+                           UserService userService) {
         this.chatRepository = chatRepository;
         this.permissionService = permissionService;
+        this.messageRepository = messageRepository;
+        this.env = env;
+        this.encryption = encryption;
+        this.userService = userService;
     }
 
     @Override
@@ -102,7 +119,7 @@ public class ChatServiceImpl implements ChatService {
             // grant authorities to add participants
             List<Long> participants = chatRepository.getParticipants(chat.getId()).stream().map(User::getId).toList();
             permissionService.grantAuthority(participants, chat.getId(), ResourceType.CHAT.getValue(),
-                     PermissionType.Chat.User.ADD.getValue());
+                    PermissionType.Chat.User.ADD.getValue());
         } else if (!canAddUsers && couldAddUsers) {
             // revoke permission
             List<Long> participants = chatRepository.getParticipants(chat.getId()).stream().map(User::getId).toList();
@@ -127,7 +144,7 @@ public class ChatServiceImpl implements ChatService {
         // TODO: revoke permissions for users in this chat
         //permissionService.revokeAuthority();
         List<User> participants = chatRepository.getParticipants(id);
-        long [] userIds = participants.stream().mapToLong(User::getId).toArray();
+        long[] userIds = participants.stream().mapToLong(User::getId).toArray();
         permissionService.revokeAuthority(userIds, id, ResourceType.CHAT.getValue());
         chatRepository.deleteChat(id);
     }
@@ -140,8 +157,12 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public void addParticipants(long chatId, long[] users) {
-       this.chatRepository.addParticipants(chatId, users);
-       permissionService.grantAuthority(users, chatId, ResourceType.CHAT.getValue(), PermissionType.Chat.DEFAULT.getValue());
+        MessageRequestDTO dto = MessageRequestDTO.builder()
+                .chatId(chatId)
+                .build();
+        Message lastMessage = messageRepository.getLastMessage(dto);
+        this.chatRepository.addParticipants(chatId, users, lastMessage.getId());
+        permissionService.grantAuthority(users, chatId, ResourceType.CHAT.getValue(), PermissionType.Chat.DEFAULT.getValue());
     }
 
     @Override
@@ -154,5 +175,60 @@ public class ChatServiceImpl implements ChatService {
     public void deleteParticipants(long chatId, long[] userIds) {
         this.chatRepository.deleteParticipants(chatId, userIds);
         this.permissionService.revokeAuthority(userIds, chatId, ResourceType.CHAT.getValue());
+    }
+
+    @Override
+    public String generateChatInvitationLink(long id, User user, String baseUrl) {
+        List<String> permissions = permissionService.getPermissions(user, id, ResourceType.CHAT.getValue());
+        if (!permissions.contains(PermissionType.Chat.ADMIN.getValue()) ||
+                !permissions.contains(PermissionType.Chat.User.ADD.getValue())) {
+            throw new AccessDeniedException("Insufficient permissions for this operation");
+        }
+        JwtUtil jwtUtil = new JwtUtil(env, "jwt.chat-invitation.secret");
+        Map<String, Object> claims = new HashMap<>();
+        String issuer = env.getProperty("jwt.chat-invitation.iss");
+        Long expirationMillis = Long.valueOf(Objects.requireNonNull(env.getProperty("jwt.chat-invitation.exp-in-millis")));
+        String subject = String.valueOf(user.getId());
+        claims.put("chatId", id);
+        String token = jwtUtil.generateToken(claims, issuer, subject, expirationMillis);
+        String encryptedToken;
+        try {
+            encryptedToken = encryption.encrypt(token);
+        } catch (Exception e) {
+            throw new RuntimeException("Couldn't encrypt invitation link");
+        }
+        Chat chat = chatRepository.getChat(id, null);
+        return baseUrl + "?token=" + encryptedToken + "&chatName=" + chat.getName();
+    }
+
+    @Override
+    public ChatRequestDTO getJoinChatInfo(User user, String encryptedToken) {
+        String token;
+        try {
+            token = encryption.decrypt(encryptedToken);
+        } catch (Exception e) {
+            throw new RuntimeException("Couldn't decrypt invitation link");
+        }
+        JwtUtil jwtUtil = new JwtUtil(env, "jwt.chat-invitation.secret");
+        boolean valid = jwtUtil.validateToken(token);
+        if (!valid) {
+            throw new AccessDeniedException("Chat invitation link is invalid");
+        }
+
+        Claims claims = jwtUtil.getClaims(token);
+        long chatId = claims.get("chatId", Long.class);
+        long linkAuthorId = Long.parseLong(claims.getSubject());
+        User author = userService.getUser(linkAuthorId);
+        // Check whether author of the link has right to generate it
+        List<String> permissions = permissionService.getPermissions(author, chatId, ResourceType.CHAT.getValue());
+        if (!permissions.contains(PermissionType.Chat.ADMIN.getValue()) ||
+                !permissions.contains(PermissionType.Chat.User.ADD.getValue())) {
+            throw new AccessDeniedException("Invitation link author doesn't have enough permissions to create invitation link");
+        }
+
+        return ChatRequestDTO.builder()
+                .chatId(chatId)
+                .users(new long[]{user.getId()})
+                .build();
     }
 }

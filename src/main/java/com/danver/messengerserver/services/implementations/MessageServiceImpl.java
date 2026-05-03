@@ -1,6 +1,5 @@
 package com.danver.messengerserver.services.implementations;
 
-import com.danver.messengerserver.MessengerServerApplication;
 import com.danver.messengerserver.models.Message;
 import com.danver.messengerserver.models.MessageDataType;
 import com.danver.messengerserver.models.MessageRequestDTO;
@@ -14,14 +13,18 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 @Service
 public class MessageServiceImpl implements MessageService {
 
     private static final Logger logger = LoggerFactory.getLogger(MessageServiceImpl.class.getName());
+    public static final String JOIN_LINK_REGEX = "^https://.*/invitation-link\\?token=.+$";
 
     private final MessageRepository messageRepository;
     private final ChatService chatService;
@@ -32,6 +35,17 @@ public class MessageServiceImpl implements MessageService {
         this.chatService = chatService;
     }
 
+    private boolean isJoinLink(String urlString) {
+        try {
+            new URI(urlString).toURL();
+        } catch (Exception e) {
+            return false;
+        }
+        Pattern p = Pattern.compile(JOIN_LINK_REGEX, Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(urlString);
+        return m.find();
+    }
+
 
     @Override
     public List<Message> getMessages(MessageRequestDTO dto) {
@@ -39,10 +53,21 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    public Message getLastMessage(MessageRequestDTO dto) {
+        return messageRepository.getLastMessage(dto);
+    }
+
+    @Override
     public Message createMessage(Message message) {
         logger.info("Generating id for a new message");
         String id = UUID.randomUUID().toString();
         message.setId(id);
+        Object messageValue = message.getData().getValue();
+        if (messageValue instanceof String) {
+            if (isJoinLink((String) messageValue)) {
+                message.getData().setType(MessageDataType.JOIN_LINK);
+            }
+        }
         message.setTime(Instant.now());
         if (message.getType() == null) {
             message.setType(Message.MessageType.CHAT);

@@ -10,6 +10,8 @@ public interface MessageRepository {
 
     List<Message> getMessages(MessageRequestDTO dto);
 
+    Message getLastMessage(MessageRequestDTO dto);
+
     void createMessage(Message message);
 
     void deleteMessages(List<Message> messages);

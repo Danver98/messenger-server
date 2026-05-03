@@ -14,7 +14,7 @@ import lombok.extern.jackson.Jacksonized;
 public class UserRequestFilter {
 
     /**
-     * Includes name or/and surname of the user
+     * Includes name or/and surname of the user or the login
      */
     private String search;
     /**

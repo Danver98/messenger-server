@@ -3,7 +3,6 @@ package com.danver.messengerserver.auth;
 import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.utils.Constants;
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +29,12 @@ public class JwtUtil {
         this.secret = Keys.hmacShaKeyFor(Objects.requireNonNull(env.getProperty("jwt.secret")).getBytes());
         //this.secret = Keys.hmacShaKeyFor(Decoders.BASE64URL.decode(env.getProperty("jwt.secret")));
     }
+
+    public JwtUtil(Environment env, String keyPropertyName) {
+        this.env = env;
+        this.secret = Keys.hmacShaKeyFor(Objects.requireNonNull(env.getProperty(keyPropertyName)).getBytes());
+    }
+
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(Constants.USER_JWT_LOGIN_KEY, user.getEmail());
@@ -44,6 +49,21 @@ public class JwtUtil {
                 .compact();
         //SignatureAlgorithm.valueOf(env.getProperty("jwt.sign-alg")))
     }
+
+    public String generateToken(Map<String, Object> claims, String issuer, String subject,
+                                Long expirationMillis) {
+        // Registered claims: "iss", "sub", "aud", "exp"
+        return Jwts.builder()
+                .claims(claims)
+                .subject(subject)
+                .expiration(new Date(System.currentTimeMillis() + expirationMillis))
+                .issuedAt(new Date())
+                .issuer(issuer)
+                .signWith(secret)
+                .compact();
+        //SignatureAlgorithm.valueOf(env.getProperty("jwt.sign-alg")))
+    }
+
     public String resolveToken(HttpServletRequest request) {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -51,6 +71,7 @@ public class JwtUtil {
         }
         return null;
     }
+
     public boolean validateToken(String token) {
         try {
             log.info("Checking token {} for validity", token);
@@ -86,6 +107,7 @@ public class JwtUtil {
             return null;
         }
     }
+
     public Claims getClaims(String token) {
         return (Claims) Jwts.parser()
                 .verifyWith(secret)

@@ -71,7 +71,7 @@ public class UserRepositoryImpl implements UserRepository {
     public void updateUser(User user) {
         String query = """
                UPDATE
-                    \"Users\"
+                    "Users"
                 SET
                     name = :name,
                     surname = :surname,
@@ -134,7 +134,7 @@ public class UserRepositoryImpl implements UserRepository {
                 u."avatarUrl",
                 u."passwordHash"
             from
-                \"Users\" u
+                "Users" u
             where
                 case
                     when :id is null
@@ -157,10 +157,13 @@ public class UserRepositoryImpl implements UserRepository {
                 -- search
                 and
                 case
+                    -- name or surname or login
                     when :name is not null
                         then
-                            (u.name ilike '%%' || :name || '%%'
-                            or u.surname ilike '%%' || :name || '%%')
+                            (u."email"  ilike '%%' || :name || '%%'
+                             or u.name ilike '%%' || :name || '%%'
+                             or u.surname ilike '%%' || :name || '%%'
+                            )
                     else
                         true
                 end
@@ -197,7 +200,6 @@ public class UserRepositoryImpl implements UserRepository {
                             where
                                 uc."chatId" = :chatId
                         )::bigint[]))
-                        
                         -- One more filtration variant for chatId filtration
                         -- exists (
                         --     select

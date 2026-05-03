@@ -13,13 +13,11 @@ import com.danver.messengerserver.utils.Constants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -488,18 +486,19 @@ public class ChatRepositoryImpl implements ChatRepository {
     }
 
     @Override
-    public void addParticipants(long chatId, long[] users) {
+    public void addParticipants(long chatId, long[] users, String messageId) {
         Long[] userIds = Arrays.stream(users).boxed().toArray(Long[]::new);
 
         MapSqlParameterSource namedParameters = new MapSqlParameterSource();
         namedParameters.addValue("chatId", chatId);
-        namedParameters.addValue("users", userIds);
+        namedParameters.addValue("users", userIds, Types.ARRAY); //, Types.ARRAY
+        namedParameters.addValue("messageId", messageId, Types.VARCHAR);
 
         String query = """
         insert into
-            "UsersChats" ("chatId", "userId")
+            "UsersChats" ("chatId", "userId", "lastReadMsg")
         select
-            :chatId, unnest(:users)
+            :chatId, unnest(:users), :messageId::uuid
         on conflict
             ("chatId", "userId") do nothing
         """;
