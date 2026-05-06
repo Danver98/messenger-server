@@ -57,6 +57,11 @@ public class PermissionService implements IPermissionService<UserDetails, Long> 
     }
 
     @Override
+    public int grantAuthority(long[] userIds, long resourceId, int resourceType, List<String> permissions) {
+        return permissionRepository.addPermission(userIds, resourceId, resourceType, permissions);
+    }
+
+    @Override
     public int revokeAuthority(long[] userIds, long resourceId, int resourceType) {
         return this.permissionRepository.deletePermissions(userIds, resourceId, resourceType);
     }

@@ -43,6 +43,8 @@ public interface IPermissionService<U extends UserDetails, R> {
 
     int grantAuthority(long[] userIds, long chatId, int resourceType, String permission);
 
+    int grantAuthority(long[] userIds, long chatId, int resourceType, List<String> permissions);
+
     // ==================== REVOKING AUTHORITIES ====================
 
     default int revokeAuthority(U principal, R resource, int resourceType, String permission) {

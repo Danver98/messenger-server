@@ -119,6 +119,19 @@ public class PermissionRepository implements IPermissionRepository<UserDetails, 
         return addPermissionsBatch(principals, resourceId, resourceType, Collections.singletonList(permission));
     }
 
+    @Override
+    public int addPermission(long[] userIds, long resourceId, int resourceType, List<String> permissions) {
+        if (userIds == null || userIds.length == 0) {
+            return 0;
+        }
+
+        List<UserDetails> principals = Arrays.stream(userIds)
+                .mapToObj(userId -> User.builder().id(userId).build())
+                .collect(Collectors.toList());
+
+        return addPermissionsBatch(principals, resourceId, resourceType, permissions);
+    }
+
     /**
      * Delete permissions for multiple users for a specific resource
      *

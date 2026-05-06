@@ -31,6 +31,8 @@ public interface IPermissionRepository<U extends UserDetails, R> {
 
     int addPermission(long[] userIds, R resource, int resourceType, String permission);
 
+    int addPermission(long[] userIds, long resourceId, int resourceType, List<String> permissions);
+
     default int deletePermission(U principal, R resource, int resourceType, String permission) {
         return 0;
     }

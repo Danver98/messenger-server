@@ -18,10 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 public class ChatServiceImpl implements ChatService {
@@ -162,7 +159,12 @@ public class ChatServiceImpl implements ChatService {
                 .build();
         Message lastMessage = messageRepository.getLastMessage(dto);
         this.chatRepository.addParticipants(chatId, users, lastMessage.getId());
-        permissionService.grantAuthority(users, chatId, ResourceType.CHAT.getValue(), PermissionType.Chat.DEFAULT.getValue());
+        Chat chat = chatRepository.getChat(chatId, null);
+        List<String> permissions =new ArrayList<>(List.of(PermissionType.Chat.DEFAULT.getValue()));
+        if (chat.isCanAddUsers()) {
+            permissions.add(PermissionType.Chat.User.ADD.getValue());
+        }
+        permissionService.grantAuthority(users, chatId, ResourceType.CHAT.getValue(), permissions);
     }
 
     @Override
