@@ -143,6 +143,22 @@ public class JwtUtil {
      * @param token
      * @return claims even if token is expired
      */
+    public Claims validateAndParseAccessTokenIfExpired(String token) {
+        try {
+            return (Claims) Jwts.parser()
+                    .verifyWith(accessTokenSecret)
+                    .build()
+                    .parse(token)
+                    .getPayload();
+        } catch (ExpiredJwtException e) {
+            return e.getClaims();
+        }
+    }
+
+    /**
+     * @param token
+     * @return claims even if token is expired
+     */
     public Claims validateAndParseRefreshTokenIfExpired(String token) {
         try {
             return (Claims) Jwts.parser()

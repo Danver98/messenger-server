@@ -81,7 +81,7 @@ public class AuthService {
         // Delete refresh token form db
         tokenRepository.deleteByUserIdAndDevice(user.getId(), deviceId);
         // Add access token to blacklist
-        Claims claims = jwtUtil.getClaims(accessToken);
+        Claims claims = jwtUtil.validateAndParseAccessTokenIfExpired(accessToken);
         Date expiration = claims.getExpiration();
         Date now = new Date();
         if (expiration.after(now)) {

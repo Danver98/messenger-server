@@ -1,7 +1,6 @@
 package com.danver.messengerserver.filters;
 
 import com.danver.messengerserver.auth.JwtUtil;
-import com.danver.messengerserver.models.User;
 import com.danver.messengerserver.services.interfaces.UserService;
 import com.danver.messengerserver.utils.Constants;
 import io.jsonwebtoken.Claims;
@@ -12,8 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
