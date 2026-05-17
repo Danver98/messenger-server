@@ -22,4 +22,14 @@ public class Constants {
 
     public static final String X_REQUEST_RESOURCE_OBJECT = "X-request-resource-object";
 
+    public static final String X_REFRESH_TOKEN_COOKIE = "x-refresh-token";
+
+    public static final String X_USER_DEVICE_ID = "X-user-device-id";
+
+    public static final String REFRESH_TOKEN_TYPE = "REFRESH_TOKEN";
+
+    public static final String JWT_TYPE_KEY = "type";
+
+    public static final String ACCESS_TOKEN_BLACKLIST_KEY = "accessTokenBlackList";
+
 }

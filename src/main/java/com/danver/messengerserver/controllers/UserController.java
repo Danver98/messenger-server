@@ -80,7 +80,7 @@ public class UserController {
             String url = storageService.store(file, options);
             return new ResponseEntity<>(url, HttpStatus.OK);
         } catch (StorageException e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

@@ -11,8 +11,6 @@ import com.danver.messengerserver.services.permission.ResourceType;
 import com.danver.messengerserver.utils.Constants;
 import com.danver.messengerserver.utils.FileStorageOptions;
 import com.danver.messengerserver.utils.FileUtils;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +25,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -307,7 +307,7 @@ public class ChatController {
                 String url = storageService.store(file, options);
                 return new ResponseEntity<>(url, HttpStatus.OK);
             } catch (StorageException e) {
-                return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
             }
         }
         return null;
@@ -369,7 +369,7 @@ public class ChatController {
                     dto
             );
             return new ResponseEntity<>(dto, HttpStatus.OK);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

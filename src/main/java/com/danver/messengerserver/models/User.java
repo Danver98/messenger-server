@@ -1,5 +1,6 @@
 package com.danver.messengerserver.models;
 
+import java.security.Principal;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -14,7 +15,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Data
 @Builder
 @Jacksonized
-public class User implements UserDetails {
+@NoArgsConstructor
+@AllArgsConstructor
+public class User implements UserDetails, Principal {
     private long id;
     @JsonProperty("login")
     @JsonAlias("email")

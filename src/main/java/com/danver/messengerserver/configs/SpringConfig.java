@@ -3,6 +3,7 @@ package com.danver.messengerserver.configs;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -15,6 +16,7 @@ import javax.sql.DataSource;
 @Configuration
 @EnableAsync
 @EnableScheduling
+@EnableJdbcRepositories(basePackages = "com.danver.messengerserver.repositories")
 public class SpringConfig {
 
     @Value("${spring.datasource.driver-class-name}")

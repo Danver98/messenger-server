@@ -1,5 +1,7 @@
-package com.danver.messengerserver.models;
+package com.danver.messengerserver.auth;
 
+
+import com.danver.messengerserver.models.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,10 +13,8 @@ import lombok.extern.jackson.Jacksonized;
 @Jacksonized
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageDTO {
-
-    private Message message;
-    private boolean chatIsPrivate;
-    private String chatName;
-    private Chat chat;
+public class AuthData {
+    User user;
+    String accessToken;
+    String refreshToken;
 }

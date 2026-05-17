@@ -37,17 +37,14 @@ public class ChatRepositoryImpl implements ChatRepository {
     private record ChatPagingDtoProperTime(Long userId, OffsetDateTime time, Long chatId, Direction direction, Integer count) {
     }
 
-    private final RedisTemplate<String, ?> redisTemplate;
-
     //Chats TABLE FIELDS:
     //id, name, avatarUrl, lastChanged, [participants], [messages]?
     // TODO: optimize queries
 
     @Autowired
-    public ChatRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, ?> redisTemplate) {
+    public ChatRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
-        this.redisTemplate = redisTemplate;
     }
 
     @Override

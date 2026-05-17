@@ -63,7 +63,11 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
         //TODO: we should allow all headers
         //configuration.setExposedHeaders(List.of(*));
-        configuration.setExposedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.WWW_AUTHENTICATE));
+        configuration.setExposedHeaders(List.of(
+                HttpHeaders.AUTHORIZATION,
+                HttpHeaders.WWW_AUTHENTICATE,
+                HttpHeaders.SET_COOKIE
+        ));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

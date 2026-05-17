@@ -1,18 +1,20 @@
 package com.danver.messengerserver.models;
 
 import com.danver.messengerserver.models.util.Direction;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.jackson.Jacksonized;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 
 @Data
 @Builder
 @Jacksonized
+@NoArgsConstructor
+@AllArgsConstructor
 public class MessageRequestDTO {
 
     private Long chatId;

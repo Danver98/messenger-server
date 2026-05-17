@@ -1,11 +1,13 @@
 package com.danver.messengerserver.controllers;
 
+import com.danver.messengerserver.exceptions.AuthenticationException;
 import com.danver.messengerserver.exceptions.AuthorizedAccessException;
 import com.danver.messengerserver.exceptions.CompletableFutureException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -17,9 +19,20 @@ import java.sql.SQLException;
 public class RestResponseEntityExceptionController extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(value
+            = {AuthenticationException.class})
+    public ResponseEntity<Object> authenticationAccessException(AuthenticationException exception) {
+        return new ResponseEntity<>("Authentication failed: %s".formatted(exception.getMessage()), HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<String> handleBadCredentials(BadCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(value
             = {AuthorizedAccessException.class})
-    public ResponseEntity<Object> authAccessException(AuthorizedAccessException exception) {
-        return new ResponseEntity<>("Access not allowed", HttpStatus.FORBIDDEN);
+    public ResponseEntity<Object> authorizationAccessException(AuthorizedAccessException exception) {
+        return new ResponseEntity<>("Access not allowed: %s".formatted(exception.getMessage()), HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(value = {DataAccessException.class, SQLException.class})

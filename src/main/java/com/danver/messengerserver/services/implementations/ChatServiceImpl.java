@@ -28,17 +28,18 @@ public class ChatServiceImpl implements ChatService {
     private final MessageRepository messageRepository;
     private final Environment env;
     private final Encryption encryption;
-
+    private final JwtUtil jwtUtil;
     private final UserService userService;
 
     @Autowired
-    public ChatServiceImpl(ChatRepository chatRepository, PermissionService permissionService, MessageRepository messageRepository, Environment env, Encryption encryption,
+    public ChatServiceImpl(ChatRepository chatRepository, PermissionService permissionService, MessageRepository messageRepository, Environment env, Encryption encryption, JwtUtil jwtUtil,
                            UserService userService) {
         this.chatRepository = chatRepository;
         this.permissionService = permissionService;
         this.messageRepository = messageRepository;
         this.env = env;
         this.encryption = encryption;
+        this.jwtUtil = jwtUtil;
         this.userService = userService;
     }
 
@@ -186,13 +187,13 @@ public class ChatServiceImpl implements ChatService {
                 !permissions.contains(PermissionType.Chat.User.ADD.getValue())) {
             throw new AccessDeniedException("Insufficient permissions for this operation");
         }
-        JwtUtil jwtUtil = new JwtUtil(env, "jwt.chat-invitation.secret");
         Map<String, Object> claims = new HashMap<>();
         String issuer = env.getProperty("jwt.chat-invitation.iss");
         Long expirationMillis = Long.valueOf(Objects.requireNonNull(env.getProperty("jwt.chat-invitation.exp-in-millis")));
         String subject = String.valueOf(user.getId());
         claims.put("chatId", id);
-        String token = jwtUtil.generateToken(claims, issuer, subject, expirationMillis);
+        String token = jwtUtil.generateToken(claims, issuer, subject, expirationMillis,
+                Objects.requireNonNull(env.getProperty("jwt.chat-invitation.secret")));
         String encryptedToken;
         try {
             encryptedToken = encryption.encrypt(token);

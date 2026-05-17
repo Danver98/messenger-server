@@ -106,6 +106,18 @@ CREATE TABLE IF NOT EXISTS "UsersPermissions"
     UNIQUE ("user", "resource", "resource_type")
 );
 
+-- Refresh tokens table
+CREATE TABLE IF NOT EXISTS "RefreshTokens"
+(
+    "id" bigserial PRIMARY KEY,
+    "user" bigint NOT NULL REFERENCES "Users" (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    "device" text,
+    "token" text not null
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_user_device
+    ON "RefreshTokens" ("user", "device")
+    NULLS NOT DISTINCT;
+
 
 
 
